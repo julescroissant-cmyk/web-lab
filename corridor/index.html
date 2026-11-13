@@ -1,0 +1,331 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Corridor</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root { --bg:#ffffff; --fg:#0f1a3d; --dim:#6b7391; --line:#1f54f033; }
+  * { box-sizing:border-box; margin:0; }
+  html,body { height:100%; background:var(--bg); color:var(--fg); overflow:hidden;
+    font:400 11px/1.6 'JetBrains Mono',ui-monospace,monospace; letter-spacing:.04em; }
+  canvas { display:block; touch-action:none; }
+  .hud { position:fixed; inset:0; pointer-events:none; padding:28px; display:grid; grid-template-rows:auto 1fr auto; }
+  header, footer { display:flex; justify-content:space-between; gap:16px; }
+  header { align-items:flex-start; }
+  footer { align-items:flex-end; }
+  .brand { font:400 clamp(40px,6.5vw,84px)/.88 'Instrument Serif',serif; letter-spacing:-.01em; }
+  .brand i { color:var(--dim); }
+  .meta, .keys { color:var(--dim); text-transform:uppercase; text-align:right; }
+  .idx { color:var(--dim); }
+  .title { font:400 30px/1.1 'Instrument Serif',serif; letter-spacing:0; min-height:33px; }
+  .progress { width:180px; height:1px; background:var(--line); margin-top:12px; }
+  .progress span { display:block; height:100%; width:0; background:var(--fg); transition:width .3s; }
+  kbd { font:inherit; color:var(--fg); border:1px solid var(--line); border-radius:3px; padding:0 5px; }
+  .touch { display:none; color:var(--dim); text-transform:uppercase; text-align:right; }
+  @media (pointer:coarse) { .touch { display:block; } }
+  .card { position:fixed; right:28px; top:50%; width:260px; padding:20px; border:1px solid var(--line);
+    background:#ffffffd9; backdrop-filter:blur(8px); pointer-events:none;
+    opacity:0; transform:translate(16px,-50%); transition:opacity .4s, transform .4s; }
+  .card.on { opacity:1; transform:translate(0,-50%); }
+  .card h2 { font:400 34px/1 'Instrument Serif',serif; margin:6px 0 14px; letter-spacing:0; }
+  .card p { color:var(--dim); }
+  .card dl { display:grid; grid-template-columns:auto 1fr; gap:4px 14px; margin-top:14px; text-transform:uppercase; }
+  .card dt { color:var(--dim); }
+  @media (pointer:coarse) { .keys { display:none; } }
+  @media (max-width:700px) {
+    .hud { padding:16px; }
+    .keys { display:none; }
+    .card { left:16px; right:16px; width:auto; top:auto; bottom:110px; transform:translateY(16px); }
+    .card.on { transform:none; }
+  }
+</style>
+</head>
+<body>
+<div class="hud">
+  <header>
+    <div class="brand">Corridor<br><i>studio</i></div>
+    <div class="meta">Galerie numérique<br>Œuvres 2019 — 2026</div>
+  </header>
+  <div></div>
+  <footer>
+    <div>
+      <div class="idx" id="idx">01 / 16</div>
+      <div class="title" id="title"></div>
+      <div class="progress"><span id="bar"></span></div>
+    </div>
+    <div class="keys">
+      <kbd>↑</kbd><kbd>↓</kbd> / molette — avancer<br>
+      <kbd>←</kbd><kbd>→</kbd> — œuvre précédente / suivante<br>
+      clic / <kbd>Entrée</kbd> — ouvrir · <kbd>Échap</kbd> — fermer
+    </div>
+    <div class="touch">Glisser ↕ avancer<br>Glisser ↔ regarder<br>Toucher — ouvrir</div>
+  </footer>
+</div>
+<aside class="card" id="card" aria-live="polite">
+  <div class="idx" id="cardIdx"></div>
+  <h2 id="cardTitle"></h2>
+  <p id="cardText"></p>
+  <dl><dt>Année</dt><dd id="cardYear"></dd><dt>Médium</dt><dd id="cardMedium"></dd></dl>
+</aside>
+
+<script type="importmap">{ "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js" } }</script>
+<script type="module">
+import * as THREE from 'three';
+
+// ---------- Corridor geometry: a bending path, s = distance along it ----------
+const W = 6, H = 4, COUNT = 16, SPACING = 7, START = 6;
+const S_MIN = -16, S_END = START + SPACING * (COUNT - 1) + 24;
+const S_MAX_CAM = START + SPACING * (COUNT - 1) - 3;
+const UP = new THREE.Vector3(0, 1, 0);
+
+const center = s => new THREE.Vector3(Math.sin(s * .06) * 5 + Math.sin(s * .023) * 3, Math.sin(s * .04) * .8, -s);
+function frame(s) {
+  const c = center(s), T = center(s + .01).sub(c).normalize();
+  const R = new THREE.Vector3().crossVectors(T, UP).normalize();
+  const U = new THREE.Vector3().crossVectors(R, T);
+  return { c, T, R, U };
+}
+const at = (s, a, b) => { const f = frame(s); return f.c.addScaledVector(f.R, a).addScaledVector(f.U, b); };
+
+{ const f = frame(37); console.assert(Math.abs(f.R.dot(f.T)) < 1e-6 && Math.abs(f.U.dot(f.T)) < 1e-6 && Math.abs(f.U.length() - 1) < 1e-6, 'corridor frame not orthonormal'); }
+
+// ---------- Scene ----------
+let renderer;
+try { renderer = new THREE.WebGLRenderer({ antialias: true }); }
+catch (e) { // no WebGL (disabled GPU, old device): say so instead of a blank page
+  title.textContent = 'WebGL indisponible sur ce navigateur.';
+  throw e;
+}
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.setSize(innerWidth, innerHeight);
+document.body.prepend(renderer.domElement);
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0xffffff);
+scene.fog = new THREE.FogExp2(0xffffff, .05);
+const camera = new THREE.PerspectiveCamera(60, innerWidth / innerHeight, .05, 200);
+
+// ---------- Wireframe grid that lights up near artworks ----------
+const pts = [];
+const seg = (p, q) => pts.push(p.x, p.y, p.z, q.x, q.y, q.z);
+for (let s = S_MIN; s <= S_END; s += 1.5) {
+  const c = [[-W/2,-H/2],[W/2,-H/2],[W/2,H/2],[-W/2,H/2]].map(([a, b]) => at(s, a, b));
+  for (let i = 0; i < 4; i++) seg(c[i], c[(i + 1) % 4]);
+}
+const rails = [];
+for (let a = -W/2; a <= W/2 + 1e-6; a += 1) rails.push([a, -H/2], [a, H/2]);
+for (let b = -H/2 + 1; b <= H/2 - 1 + 1e-6; b += 1) rails.push([-W/2, b], [W/2, b]);
+for (const [a, b] of rails) {
+  let prev = at(S_MIN, a, b);
+  for (let s = S_MIN + .5; s <= S_END; s += .5) { const p = at(s, a, b); seg(prev, p); prev = p; }
+}
+const gridGeo = new THREE.BufferGeometry();
+gridGeo.setAttribute('position', new THREE.Float32BufferAttribute(pts, 3));
+
+const lightPos = Array.from({ length: COUNT }, () => new THREE.Vector3());
+const lightCol = Array.from({ length: COUNT }, () => new THREE.Vector3());
+const lightPow = new Array(COUNT).fill(0);
+const gridMat = new THREE.ShaderMaterial({
+  uniforms: { uL: { value: lightPos }, uC: { value: lightCol }, uP: { value: lightPow }, uCam: { value: new THREE.Vector3() } },
+  vertexShader: `varying vec3 vW;
+    void main(){ vec4 w = modelMatrix * vec4(position,1.); vW = w.xyz; gl_Position = projectionMatrix * viewMatrix * w; }`,
+  fragmentShader: `#define N ${COUNT}
+    uniform vec3 uL[N]; uniform vec3 uC[N]; uniform float uP[N]; uniform vec3 uCam; varying vec3 vW;
+    void main(){
+      // blue lines on white: near an artwork the line darkens to full blue
+      float glow = 0.;
+      for(int i=0;i<N;i++){ vec3 d = vW - uL[i]; glow += uP[i] * exp(-dot(d,d) * .09); }
+      float k = (.38 + .62 * clamp(glow, 0., 1.)) * exp(-length(vW - uCam) * .05);
+      gl_FragColor = vec4(mix(vec3(1.), vec3(.12,.33,.94), k), 1.);
+    }`,
+});
+scene.add(new THREE.LineSegments(gridGeo, gridMat));
+
+// ---------- Placeholder artworks ----------
+const NAMES = ['Halo','Sédiment','Nocturne','Faille','Prisme','Marée','Spectre','Strate','Lueur','Orbite','Fréquence','Vestige','Éclipse','Dérive','Pulsation','Silence'];
+const MEDIA = ['Shader temps réel','Impression pigmentaire','Installation lumineuse','Vidéo générative','Sculpture numérique'];
+await document.fonts.ready;
+
+function artTexture(i, hue) {
+  const c = document.createElement('canvas'); c.width = 512; c.height = 640;
+  const g = c.getContext('2d');
+  let seed = i * 7919 + 13;
+  const rnd = () => (seed = (seed * 9301 + 49297) % 233280) / 233280;
+  g.fillStyle = `hsl(${hue},20%,7%)`; g.fillRect(0, 0, 512, 640);
+  const gr = g.createRadialGradient(256 + (rnd() - .5) * 220, 300 + (rnd() - .5) * 260, 8, 256, 320, 440);
+  gr.addColorStop(0, `hsla(${hue},95%,62%,.95)`);
+  gr.addColorStop(.45, `hsla(${(hue + 40) % 360},70%,32%,.55)`);
+  gr.addColorStop(1, 'transparent');
+  g.fillStyle = gr; g.fillRect(0, 0, 512, 640);
+  g.globalCompositeOperation = 'screen';
+  for (let k = 0; k < 7; k++) {
+    g.strokeStyle = `hsla(${(hue + k * 22) % 360},90%,72%,.45)`; g.lineWidth = 1 + rnd() * 3; g.beginPath();
+    if (rnd() < .5) g.arc(rnd() * 512, rnd() * 640, 30 + rnd() * 190, 0, Math.PI * 2);
+    else g.rect(rnd() * 400, rnd() * 500, 40 + rnd() * 220, 40 + rnd() * 220);
+    g.stroke();
+  }
+  g.globalCompositeOperation = 'source-over';
+  g.fillStyle = 'rgba(255,255,255,.85)';
+  g.font = '500 16px "JetBrains Mono", monospace';
+  g.fillText(`${String(i + 1).padStart(2, '0')} — ${NAMES[i].toUpperCase()}`, 28, 612);
+  const t = new THREE.CanvasTexture(c);
+  t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = renderer.capabilities.getMaxAnisotropy();
+  return t;
+}
+
+const planeGeo = new THREE.PlaneGeometry(1.6, 2);
+const edgeGeo = new THREE.EdgesGeometry(new THREE.PlaneGeometry(1.72, 2.12));
+const arts = [];
+for (let i = 0; i < COUNT; i++) {
+  const s = START + i * SPACING, side = i % 2 ? 1 : -1, hue = (i * 47 + 190) % 360;
+  const f = frame(s);
+  const z = f.R.clone().multiplyScalar(-side), y = f.U.clone(), x = new THREE.Vector3().crossVectors(y, z);
+  const wallQuat = new THREE.Quaternion().setFromRotationMatrix(new THREE.Matrix4().makeBasis(x, y, z));
+  const wallPos = f.c.clone().addScaledVector(f.R, side * (W / 2 - .04)).addScaledVector(f.U, .15);
+  const col = new THREE.Color(`hsl(${hue},85%,62%)`).convertLinearToSRGB(); // shader writes raw sRGB
+
+  const mesh = new THREE.Mesh(planeGeo, new THREE.MeshBasicMaterial({ map: artTexture(i, hue) }));
+  mesh.add(new THREE.LineSegments(edgeGeo, new THREE.LineBasicMaterial({ color: 0x1f54f0 })));
+  mesh.position.copy(wallPos); mesh.quaternion.copy(wallQuat);
+  scene.add(mesh);
+
+  lightPos[i].copy(wallPos).addScaledVector(f.R, -side * 1.2);
+  lightCol[i].set(col.r, col.g, col.b);
+  arts.push({ i, s, side, mesh, wallPos, wallQuat, t: 0, hover: 0,
+    name: NAMES[i], year: 2019 + (i * 3) % 8, medium: MEDIA[i % MEDIA.length] });
+}
+const meshes = arts.map(a => a.mesh);
+
+// ---------- State & input ----------
+let s = S_MIN + 4, sT = 0, mx = 0, my = 0, mxT = 0, myT = 0, yaw = 0, yawT = 0, selected = null, hovered = null;
+const clampS = v => Math.min(Math.max(v, 0), S_MAX_CAM);
+const nearest = v => arts.reduce((b, a) => Math.abs(a.s - v - 4) < Math.abs(b.s - v - 4) ? a : b);
+const ndc = new THREE.Vector2(-9, -9), ray = new THREE.Raycaster();
+const pick = () => { ray.setFromCamera(ndc, camera); const h = ray.intersectObjects(meshes, false)[0];
+  return h && h.distance < 14 ? arts[meshes.indexOf(h.object)] : null; };
+
+// Where the opened artwork sits: on mobile, in the free space between the header and the card
+const tanH = () => Math.tan(THREE.MathUtils.degToRad(camera.fov / 2));
+let view = { dist: 3, ox: 0, oy: 0 };
+function layoutView() {
+  const t = tanH(), a = camera.aspect;
+  if (innerWidth > 700) { view = { dist: Math.max(2.6, 1.92 / (2 * t * a)), ox: a > 1.1 ? -.55 : 0, oy: 0 }; return; }
+  const top = document.querySelector('header').getBoundingClientRect().bottom + 12;
+  const bottom = card.offsetTop - 12; // offsetTop ignores the slide-in transform
+  const hPx = Math.max(120, bottom - top);
+  // framed plane is 1.72 × 2.12: fit its height in the gap and its width in the screen
+  const dist = Math.max(2.12 * innerHeight / (hPx * 2 * t), 1.72 * innerWidth / ((innerWidth - 32) * 2 * t * a));
+  const ndcY = 1 - (top + bottom) / innerHeight;
+  view = { dist, ox: 0, oy: ndcY * t * dist };
+}
+
+function open(a) { selected = a; sT = s;
+  cardIdx.textContent = `${String(a.i + 1).padStart(2, '0')} / ${COUNT}`;
+  cardTitle.textContent = a.name;
+  cardText.textContent = 'Œuvre placeholder — remplace la texture et ce texte par tes propres visuels.';
+  cardYear.textContent = a.year; cardMedium.textContent = a.medium;
+  card.classList.add('on'); layoutView(); }
+function close() { selected = null; card.classList.remove('on'); }
+const go = dir => { const n = arts[Math.min(Math.max(nearest(sT).i + dir, 0), COUNT - 1)]; sT = clampS(n.s - 5.5); };
+
+addEventListener('pointermove', e => {
+  ndc.set(e.clientX / innerWidth * 2 - 1, -(e.clientY / innerHeight) * 2 + 1);
+  if (e.pointerType === 'mouse') { mxT = ndc.x; myT = ndc.y; }
+});
+addEventListener('pointerdown', e => ndc.set(e.clientX / innerWidth * 2 - 1, -(e.clientY / innerHeight) * 2 + 1));
+renderer.domElement.addEventListener('click', () => {
+  if (dragged) return;
+  if (selected) return close();
+  const a = pick(); if (a) open(a);
+});
+addEventListener('wheel', e => { e.preventDefault(); if (!selected) sT = clampS(sT + e.deltaY * .012); }, { passive: false });
+// touch: the first clear direction of a swipe wins — vertical moves, horizontal turns the head
+let touchX = null, touchY = null, axis = null, dragged = false;
+addEventListener('touchstart', e => { touchX = e.touches[0].clientX; touchY = e.touches[0].clientY; axis = null; dragged = false; }, { passive: true });
+addEventListener('touchmove', e => {
+  const x = e.touches[0].clientX, y = e.touches[0].clientY, dx = x - touchX, dy = y - touchY;
+  if (!axis) { if (Math.hypot(dx, dy) < 6) return; axis = Math.abs(dx) > Math.abs(dy) ? 'x' : 'y'; dragged = true; }
+  if (!selected) {
+    if (axis === 'x') yawT = Math.min(Math.max(yawT + dx * .003, -.45), .45);
+    else { sT = clampS(sT - dy * .03); yawT *= .92; } // walking recenters the gaze
+  }
+  touchX = x; touchY = y;
+}, { passive: true });
+addEventListener('keydown', e => {
+  const k = e.key.toLowerCase();
+  if (['arrowup','arrowdown','arrowleft','arrowright',' '].includes(k)) e.preventDefault();
+  if (k === 'escape') return close();
+  if (k === 'enter' || k === ' ') return selected ? close() : open(nearest(s));
+  if (selected) close();
+  if (['arrowup','w','z'].includes(k)) sT = clampS(sT + 2.5);
+  if (['arrowdown','s'].includes(k)) sT = clampS(sT - 2.5);
+  if (['arrowright','d'].includes(k)) go(1);
+  if (['arrowleft','a','q'].includes(k)) go(-1);
+});
+addEventListener('resize', () => {
+  camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+  layoutView();
+});
+layoutView();
+
+// ---------- Loop ----------
+const clock = new THREE.Clock();
+const tmpQ = new THREE.Quaternion(), fwd = new THREE.Vector3(), right = new THREE.Vector3(), upv = new THREE.Vector3(), front = new THREE.Vector3();
+let lastIdx = -1;
+
+renderer.setAnimationLoop(() => {
+  const dt = Math.min(clock.getDelta(), .05), time = clock.elapsedTime;
+  const k = 1 - Math.exp(-dt * 4);
+  s += (sT - s) * k; mx += (mxT - mx) * k; my += (myT - my) * k; yaw += (yawT - yaw) * k;
+
+  const f = frame(s);
+  camera.position.copy(f.c).addScaledVector(f.U, -.25 + Math.sin(time * .8) * .02);
+  camera.lookAt(center(s + 5).setY(center(s + 5).y - .25));
+  camera.rotateY(-mx * .35 + yaw); camera.rotateX(my * .2);
+  gridMat.uniforms.uCam.value.copy(camera.position);
+
+  hovered = selected ? null : pick();
+  renderer.domElement.style.cursor = hovered || selected ? 'pointer' : '';
+
+  fwd.set(0, 0, -1).applyQuaternion(camera.quaternion);
+  right.set(1, 0, 0).applyQuaternion(camera.quaternion);
+  upv.set(0, 1, 0).applyQuaternion(camera.quaternion);
+  front.copy(camera.position).addScaledVector(fwd, view.dist).addScaledVector(right, view.ox).addScaledVector(upv, view.oy);
+
+  for (const a of arts) {
+    a.t += ((a === selected ? 1 : 0) - a.t) * (1 - Math.exp(-dt * 5));
+    a.hover += ((a === hovered ? 1 : 0) - a.hover) * k;
+    if (a.t > .001) {
+      const e = a.t * a.t * (3 - 2 * a.t);
+      const normal = new THREE.Vector3(0, 0, 1).applyQuaternion(a.wallQuat);
+      const mid = a.wallPos.clone().addScaledVector(normal, 1.4);
+      // quadratic bezier wall → off-wall → in front of camera = the "peel"
+      a.mesh.position.copy(a.wallPos).multiplyScalar((1 - e) ** 2)
+        .addScaledVector(mid, 2 * e * (1 - e)).addScaledVector(front, e * e);
+      a.mesh.quaternion.slerpQuaternions(a.wallQuat, camera.quaternion, e)
+        .multiply(tmpQ.setFromAxisAngle(UP, Math.sin(e * Math.PI) * .6 * a.side));
+    } else { a.mesh.position.copy(a.wallPos); a.mesh.quaternion.copy(a.wallQuat); }
+    a.mesh.scale.setScalar(1 + a.hover * .05);
+
+    const near = Math.max(0, 1 - Math.abs(a.s - s - 3) / 7);
+    const target = near * 1.1 + a.hover * .6 + (a === selected ? 1.2 : 0);
+    lightPow[a.i] += (target - lightPow[a.i]) * k;
+  }
+
+  const cur = nearest(s);
+  if (cur.i !== lastIdx) {
+    lastIdx = cur.i;
+    idx.textContent = `${String(cur.i + 1).padStart(2, '0')} / ${COUNT}`;
+    title.textContent = cur.name;
+  }
+  bar.style.width = `${Math.max(0, s / S_MAX_CAM) * 100}%`;
+
+  renderer.render(scene, camera);
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,729 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Alex — Desktop</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Pixelify+Sans:wght@400;500;600&family=VT323&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --face:#dcd9d1; --face2:#e9e7e1; --hi:#ffffff; --lo:#86837b; --dk:#151515;
+    --title:linear-gradient(90deg,#2f3fbf,#6d7ff0); --title-off:linear-gradient(90deg,#7d7b76,#b3b1ab);
+    --sel:#3448c8; --ink:#141414;
+    --pix:'Pixelify Sans',system-ui,sans-serif; --mono:'IBM Plex Mono',ui-monospace,monospace;
+    --tb:36px;
+  }
+  * { box-sizing:border-box; }
+  html,body { margin:0; height:100%; overflow:hidden; background:#4f8fd8; color:var(--ink); font:400 13px/1.5 var(--mono); }
+  #wall { position:fixed; inset:0; width:100%; height:100%; background:center/cover no-repeat; }
+  button { font:inherit; color:inherit; }
+
+  /* ---- Win98 bevels ---- */
+  .raised { background:var(--face); box-shadow:inset -1px -1px var(--dk), inset 1px 1px var(--hi), inset -2px -2px var(--lo), inset 2px 2px var(--face2); }
+  .sunken { box-shadow:inset 1px 1px var(--lo), inset -1px -1px var(--hi), inset 2px 2px var(--dk), inset -2px -2px var(--face2); }
+  .btn { all:unset; box-sizing:border-box; cursor:pointer; padding:7px 14px 6px; font:500 13px/1 var(--pix); text-align:center;
+    background:var(--face); box-shadow:inset -1px -1px var(--dk), inset 1px 1px var(--hi), inset -2px -2px var(--lo), inset 2px 2px var(--face2); }
+  .btn:active, .btn[aria-pressed="true"] { box-shadow:inset 1px 1px var(--dk), inset -1px -1px var(--hi), inset 2px 2px var(--lo), inset -2px -2px var(--face2); padding:8px 13px 5px 15px; }
+  .btn:focus-visible { outline:1px dotted var(--ink); outline-offset:-5px; }
+  .field { font:13px/1.4 var(--mono); background:#fff; border:0; padding:5px 7px; width:100%;
+    box-shadow:inset 1px 1px var(--lo), inset -1px -1px var(--hi), inset 2px 2px var(--dk), inset -2px -2px var(--face2); }
+  .field:focus { outline:1px dotted var(--ink); outline-offset:-4px; }
+
+  /* ---- Desktop icons ---- */
+  .icons { position:fixed; inset:0 0 var(--tb) 0; }
+  .icon { all:unset; position:absolute; width:96px; display:grid; justify-items:center; gap:5px; cursor:default; touch-action:none; user-select:none; }
+  /* dropped-item float: bob + sway on `translate`/`rotate`, hover/press on `scale` so they combine */
+  .sprite { position:relative; width:64px; height:64px; pointer-events:none;
+    animation:bob 2.8s ease-in-out var(--d,0s) infinite; transition:scale .35s cubic-bezier(.34,1.8,.5,1); }
+  .sprite img { display:block; width:64px; height:64px; image-rendering:pixelated; }
+  /* varnish: a light band sweeps across, clipped to the sprite's own pixels */
+  .sprite i { position:absolute; inset:0; -webkit-mask:var(--m) 0 0/100% 100%; mask:var(--m) 0 0/100% 100%;
+    background:linear-gradient(115deg,#fff0 38%,#fffc 47%,#fff0 49%,#fff0 52%,#fff8 54%,#fff0 60%) 130% 0/300% 100% no-repeat;
+    animation:shine 6s ease-in-out var(--d,0s) infinite; }
+  @keyframes shine { 0%,72% { background-position:130% 0; } 100% { background-position:-30% 0; } }
+  .icon::before { content:''; position:absolute; top:60px; left:50%; width:44px; height:8px; margin-left:-22px; border-radius:50%;
+    background:radial-gradient(#0006,#0000 70%); animation:shadow 2.8s ease-in-out var(--d,0s) infinite; pointer-events:none; }
+  @keyframes bob { 0%,100% { translate:0 0; rotate:-3deg; } 50% { translate:0 -7px; rotate:3deg; } }
+  @keyframes shadow { 0%,100% { scale:1; opacity:1; } 50% { scale:.7; opacity:.55; } }
+  .icon:hover .sprite { scale:1.15; animation-duration:1.1s; }
+  .icon:hover .sprite i { animation:shine-now .7s ease-out; }
+  @keyframes shine-now { from { background-position:130% 0; } to { background-position:-30% 0; } }
+  .icon:active .sprite { scale:.9; transition-duration:.08s; }
+  .icon span { font:500 12px/1.25 var(--pix); color:#fff; padding:1px 4px; text-align:center; text-shadow:0 1px 2px #000a, 0 0 1px #000; }
+  .icon.sel .sprite img { filter:brightness(.75) sepia(.4) hue-rotate(190deg) saturate(2.5); }
+  .icon.sel span { background:var(--sel); text-shadow:none; outline:1px dotted #fff; }
+  .icon:focus-visible span { outline:1px dotted #fff; }
+
+  /* ---- Windows ---- */
+  .win { position:fixed; display:none; flex-direction:column; width:var(--w,420px); max-width:calc(100vw - 16px); padding:3px;
+    filter:drop-shadow(0 14px 24px #0003); }
+  .win.open { display:flex; animation:pop .14s ease-out; }
+  .win.min { display:none; }
+  .win.max { left:0 !important; top:0 !important; width:100vw !important; max-width:none; height:calc(100vh - var(--tb)) !important; max-height:none !important; }
+  @keyframes pop { from { transform:scale(.96); } }
+  .title { display:flex; align-items:center; gap:6px; height:22px; padding:0 3px 0 5px; background:var(--title-off); color:#fff;
+    font:500 12px/1 var(--pix); letter-spacing:.02em; user-select:none; touch-action:none; cursor:default; flex:none; }
+  .win.active .title { background:var(--title); }
+  .title .ti { width:16px; height:16px; image-rendering:pixelated; }
+  .title span { flex:1; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .ctl { display:flex; gap:2px; }
+  .ctl button { all:unset; width:18px; height:16px; display:grid; place-items:center; cursor:pointer; color:var(--ink); font:600 11px/1 var(--pix);
+    background:var(--face); box-shadow:inset -1px -1px var(--dk), inset 1px 1px var(--hi), inset -2px -2px var(--lo), inset 2px 2px var(--face2); }
+  .ctl button:active { box-shadow:inset 1px 1px var(--dk), inset -1px -1px var(--hi), inset 2px 2px var(--lo); }
+  .ctl button[data-a="close"] { margin-left:2px; }
+  .content { padding:14px; overflow:auto; flex:1; min-height:0; }
+
+  /* hello.exe */
+  .who { display:flex; gap:16px; align-items:center; }
+  .avatar { width:72px; height:72px; /* 64px content = exact 2× of the 32px sprite */ image-rendering:pixelated; background:#bfe3ff; flex:none;
+    box-shadow:inset 1px 1px var(--lo), inset -1px -1px var(--hi), inset 2px 2px var(--dk), inset -2px -2px var(--face2); padding:4px; }
+  .who h1 { margin:0; font:600 clamp(26px,3.4vw,34px)/1.05 var(--pix); letter-spacing:-.01em; }
+  .who p { margin:6px 0 0; font:400 14px/1.35 var(--pix); color:#3c3a36; }
+  .bio { margin:16px 0 14px; font-size:13.5px; line-height:1.6; }
+  .status { display:inline-flex; align-items:center; gap:8px; background:#fff; padding:6px 10px 6px 9px; font:500 12.5px/1 var(--mono); }
+  .status i { width:9px; height:9px; background:#2fbf4f; box-shadow:0 0 0 1px #1a7d30; animation:blink 2.4s steps(1) infinite; }
+  @keyframes blink { 50% { opacity:.35; } }
+  .actions { display:flex; flex-wrap:wrap; gap:8px; margin-top:16px; }
+  .hint { margin:14px 0 0; font-size:11.5px; color:#6c6a64; }
+
+  /* explorer */
+  .bar2 { display:flex; align-items:center; gap:8px; padding:0 0 10px; font:500 12px var(--pix); }
+  .files { background:#fff; padding:12px; display:grid; grid-template-columns:repeat(auto-fill,minmax(104px,1fr)); gap:10px; min-height:180px; }
+  .file { all:unset; display:grid; justify-items:center; gap:6px; padding:6px 4px; cursor:default; text-align:center; font:12px/1.25 var(--pix); }
+  .file canvas { width:72px; height:54px; image-rendering:pixelated; box-shadow:0 0 0 1px #0003, 0 3px 6px #0002; }
+  .file.sel span { background:var(--sel); color:#fff; outline:1px dotted #fff; }
+  .file:focus-visible span { outline:1px dotted var(--ink); }
+  .statusbar { margin-top:8px; padding:4px 8px; font:12px var(--pix); min-height:24px; }
+
+  /* cv.pdf */
+  .paper { background:#fff; padding:22px 24px; }
+  .paper h2 { margin:0; font:600 22px/1.1 var(--pix); }
+  .paper h3 { margin:18px 0 8px; font:500 12px var(--pix); text-transform:uppercase; letter-spacing:.08em; color:#6c6a64; border-bottom:1px solid #ddd; padding-bottom:4px; }
+  .job { display:grid; grid-template-columns:110px 1fr; gap:10px; padding:4px 0; }
+  .job b { font-weight:500; }
+  .job ul { margin:4px 0 2px; padding-left:16px; font-size:12px; line-height:1.5; }
+  .job li { margin:2px 0; } .job small { color:#6c6a64; }
+  .skill { display:grid; grid-template-columns:110px 1fr; gap:10px; align-items:center; padding:3px 0; }
+  .meter { height:12px; background:#fff; padding:2px; }
+  .meter i { display:block; height:100%; background:repeating-linear-gradient(90deg,var(--sel) 0 8px,transparent 8px 10px); }
+
+  /* contact.eml */
+  .mail { display:grid; gap:8px; }
+  .mail label { display:grid; grid-template-columns:56px 1fr; align-items:center; font:500 12px var(--pix); }
+  .mail textarea { resize:vertical; min-height:110px; }
+  .links { display:flex; gap:12px; flex-wrap:wrap; margin-left:auto; align-self:center; font:12px var(--pix); }
+  .links a { color:var(--sel); }
+
+  /* terminal */
+  .win[data-id="terminal"] .content { padding:2px; }
+  .term { background:#0c0d10; color:#c7f5b4; font:19px/1.15 'VT323',monospace; height:100%; min-height:260px; padding:10px 12px; overflow:auto; cursor:text; white-space:pre-wrap; }
+  .term .muted { color:#6b7a6b; } .term .hl { color:#ffd25a; } .term .err { color:#ff8a8a; }
+  .prompt { display:flex; gap:8px; } .prompt span { color:#7cb8ff; flex:none; }
+  .prompt input { all:unset; flex:1; min-width:0; caret-color:#c7f5b4; }
+
+  /* trash */
+  .trash li { display:flex; align-items:center; gap:8px; padding:4px 2px; font:12px var(--pix); }
+  .trash ul { list-style:none; margin:0; padding:10px; background:#fff; min-height:120px; }
+  .trash img { width:16px; height:16px; image-rendering:pixelated; }
+
+  /* ---- Taskbar ---- */
+  .taskbar { position:fixed; left:0; right:0; bottom:0; height:var(--tb); z-index:100000; display:flex; align-items:center; gap:4px; padding:3px 3px;
+    background:var(--face); box-shadow:inset 0 1px var(--face2), inset 0 2px var(--hi); }
+  .start { display:flex; align-items:center; gap:6px; padding:5px 10px 4px 6px; height:28px; }
+  .start img { width:18px; height:18px; image-rendering:pixelated; }
+  .tasks { display:flex; gap:4px; flex:1; min-width:0; overflow:hidden; }
+  .task { display:flex; align-items:center; gap:6px; height:28px; width:160px; min-width:0; padding:5px 8px 4px; text-align:left; }
+  .task img { width:16px; height:16px; image-rendering:pixelated; flex:none; }
+  .task span { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .task[aria-pressed="true"] { background:repeating-conic-gradient(var(--face) 0 25%, var(--hi) 0 50%) 0 0/2px 2px; font-weight:600; }
+  .tray { display:flex; align-items:center; gap:8px; height:28px; padding:0 10px; font:500 12px var(--pix); }
+  .tray i { width:8px; height:8px; background:#2fbf4f; }
+  .startmenu { position:fixed; left:3px; bottom:calc(var(--tb) - 2px); z-index:100001; padding:3px; width:220px; display:flex; }
+  .startmenu[hidden] { display:none; }
+  .startmenu .side { width:26px; background:var(--title); color:#fff; writing-mode:vertical-rl; transform:rotate(180deg); font:600 14px var(--pix); padding:8px 4px; }
+  .startmenu ul { list-style:none; margin:0; padding:2px; flex:1; }
+  .startmenu button { all:unset; box-sizing:border-box; width:100%; display:flex; align-items:center; gap:10px; padding:7px 8px; font:500 13px var(--pix); cursor:pointer; }
+  .startmenu button:hover, .startmenu button:focus-visible { background:var(--sel); color:#fff; }
+  .startmenu img { width:24px; height:24px; image-rendering:pixelated; }
+
+  @media (max-width:700px) {
+    .win { width:calc(100vw - 16px) !important; }
+    .task { width:auto; flex:1; }
+  }
+  /* touch screens: finger-sized title-bar buttons and taskbar */
+  @media (pointer:coarse) {
+    :root { --tb:46px; }
+    .title { height:34px; font-size:13px; padding:0 3px 0 8px; }
+    .title .ti { width:20px; height:20px; }
+    .ctl { gap:4px; }
+    .ctl button { width:36px; height:28px; font-size:14px; }
+    .ctl button[data-a="close"] { margin-left:4px; }
+    .taskbar { gap:5px; padding:4px; }
+    .start, .task, .tray { height:38px; }
+    .start img { width:22px; height:22px; }
+    .task img { width:20px; height:20px; }
+    .startmenu button { padding:11px 10px; }
+  }
+  @media (pointer:coarse) and (max-width:700px) {
+    /* icon-only task buttons so every open window keeps a tappable tab */
+    .task { flex:0 0 46px; width:46px; padding:0; justify-content:center; }
+    .task span { display:none; }
+    .tasks { overflow-x:auto; scrollbar-width:none; }
+  }
+  @media (prefers-reduced-motion:reduce) { .win.open, .status i, .sprite, .sprite i, .icon::before { animation:none !important; } }
+</style>
+</head>
+<body>
+<div id="wall" aria-hidden="true"></div>
+<nav class="icons" id="icons" aria-label="Bureau"></nav>
+
+<section class="win" data-id="hello" data-title="hello.exe" data-icon="avatar" data-pos=".5,.36" style="--w:470px">
+  <div class="content">
+    <div class="who"><img class="avatar" data-icon="avatar" alt="Portrait pixel"><div><h1 id="hName"></h1><p id="hRole"></p></div></div>
+    <p class="bio" id="hBio"></p>
+    <div class="status sunken"><i></i><span id="hStatus"></span></div>
+    <div class="actions">
+      <button class="btn" id="copyEmail">Copier l'email</button>
+      <button class="btn" id="bookCall">Prendre un rendez-vous</button>
+      <button class="btn" data-open="projects">Voir les projets</button>
+    </div>
+    <p class="hint" id="hint">Double-clique sur les icônes pour fouiller. Tu peux aussi les déplacer.</p>
+  </div>
+</section>
+
+<section class="win" data-id="projects" data-title="projets" data-icon="folder" data-pos=".28,.22" style="--w:560px">
+  <div class="content">
+    <div class="bar2"><span>Adresse</span><div class="field" id="pPath"></div></div>
+    <div class="files sunken" id="files"></div>
+    <div class="statusbar sunken" id="pStatus"></div>
+  </div>
+</section>
+
+<section class="win" data-id="cv" data-title="cv.pdf" data-icon="doc" data-pos=".66,.16" style="--w:480px">
+  <div class="content"><div class="paper sunken" id="cvPaper"></div></div>
+</section>
+
+<section class="win" data-id="contact" data-title="contact.eml" data-icon="mail" data-pos=".72,.4" style="--w:440px">
+  <div class="content">
+    <form class="mail" id="mailForm">
+      <label>À :<input class="field" id="mTo" readonly></label>
+      <label>Objet :<input class="field" id="mSubj" value="Un projet ensemble ?"></label>
+      <textarea class="field" id="mBody" aria-label="Message"></textarea>
+      <div class="actions" style="margin-top:4px"><button class="btn" type="submit">Envoyer</button><div class="links" id="mLinks"></div></div>
+    </form>
+  </div>
+</section>
+
+<section class="win" data-id="terminal" data-title="terminal.exe" data-icon="monitor" data-pos=".58,.62" style="--w:580px">
+  <div class="content"><div class="term sunken" id="term"><div id="out"></div><label class="prompt"><span id="ps1"></span><input id="cmd" autocomplete="off" autocapitalize="off" spellcheck="false" aria-label="Commande du terminal"></label></div></div>
+</section>
+
+<section class="win" data-id="trash" data-title="Corbeille" data-icon="trash" data-pos=".36,.7" style="--w:380px">
+  <div class="content trash">
+    <ul class="sunken" id="trashList"></ul>
+    <div class="actions"><button class="btn" id="emptyTrash">Vider la corbeille</button></div>
+  </div>
+</section>
+
+<div class="startmenu raised" id="startMenu" hidden><div class="side" id="smSide"></div><ul id="smList"></ul></div>
+<footer class="taskbar">
+  <button class="btn start" id="startBtn" aria-expanded="false"><img data-icon="avatar" alt=""><b id="startName"></b></button>
+  <div class="tasks" id="tasks"></div>
+  <div class="tray sunken"><i title="Disponible"></i><span id="clock"></span></div>
+</footer>
+
+<script>
+// ================= Contenu : modifie cet objet =================
+const C = {
+  name: 'Jules Croissant', first: 'Jules', user: 'jules',
+  role: 'Head of Production · Konbini, Paris',
+  bio: "Head of Production chez Konbini, je co-dirige le département Production (production, image, montage, post-production) sur l'éditorial et le brand content. Six ans de terrain, du plateau au pilotage financier : budgets, organisation des équipes et outils de suivi.",
+  status: 'En poste chez Konbini · ouvert aux échanges',
+  email: atob('bW9jLmxpYW1nQHRuYXNzaW9yY3NlbHVq').split('').reverse().join(''), // email encodé (reverse + base64) pour les robots qui aspirent les adresses ; le décoder ici pour le modifier
+  callUrl: '', // lien de prise de rendez-vous (Calendly, cal.com…) ; vide = bouton masqué
+  wallpaper: '', // URL d'une photo pour remplacer le fond peint (ex. 'prairie.jpg')
+  links: [['LinkedIn', 'https://www.linkedin.com/in/julescroissant/']],
+  // year: null quand l'année n'est pas connue
+  projects: [
+    { name: 'Premier doc 52′', ext: 'mov', desc: 'Production du premier documentaire 52 minutes de Konbini', year: null, c: '#4aa8ff' },
+    { name: 'Présidentielle 2022', ext: 'mp4', desc: 'Couverture Konbini News : interviews de tous les candidats, dont le Président de la République', year: 2022, c: '#ff7eb6' },
+  ],
+  // [années, poste, détail] : le détail est un texte, ou une liste [ligne d'en-tête, puces…]
+  jobs: [
+    ['2026 — auj.', 'Head of Production', ['Konbini · CDI cadre',
+      'Co-direction du département Production (production, image, montage, post-production, studio, son)',
+      'Recrutement, intégration et accompagnement des équipes']],
+    ['2025 — 2026', 'Directeur de production éditoriale', ['Konbini · CDI cadre',
+      'Pilotage du budget de production éditoriale']],
+    ['2021 — 2025', 'Chargé de production éditoriale', ['Konbini News · CDI',
+      'Organisation des reportages et tournages en France et à l’étranger',
+      'Budget de production, prestataires et suivi des commandes',
+      'Planning de post-production et outils de suivi',
+      'Lead des formats longs : présidentielle 2022, premier documentaire 52′']],
+    ['2020 — 2021', 'Assistant de production', 'Konbini · stage, CDD puis alternance · tournages Konbini Pop, planning, assistanat post-production'],
+  ],
+  education: [
+    ['2020 — 2021', 'Master 2 Production audiovisuelle', 'Université Paris 3 Sorbonne Nouvelle · en alternance chez Konbini'],
+    ['2019 — 2020', 'Master 1 Géopolitique de l’art et de la culture', 'Université Paris 3 Sorbonne Nouvelle'],
+    ['2016 — 2019', 'Licence de Science politique', 'Université Lumière Lyon 2 · mention bien · L3 à Chung-Ang University, Séoul'],
+  ],
+  skills: [
+    ['Management', 'Encadrement d’équipe, recrutement, entretiens annuels'],
+    ['Finance', 'Budgets de production, suivi des coûts, dossiers de financement public'],
+    ['Tournages', 'Studio et extérieur (interview, reportage), Sony FX3, son HF'],
+    ['Post-prod', 'Premiere Pro (maîtrise complète), étalonnage, proxys et ProRes, Avid Nexis, Topaz Video AI, gestion d’assets'],
+  ],
+  languages: ['Anglais courant (C1), utilisé au quotidien', 'Allemand basique', 'Coréen basique'],
+  extra: [
+    ['Engagement', 'Trésorier de l’association ASLIVE (séjours de vacances adaptés)'],
+    ['Loisirs', 'Course à pied, escalade, basket, cinéma'],
+  ],
+  trash: ['planning_tournage_v14_FINAL(2).xlsx', 'devis_prestataire_refusé.pdf', 'rushes_sans_nom/', 'montage_v3_ok_vraiment_ok.prproj'],
+};
+const DESK = [
+  { id: 'projects', label: 'projets', icon: 'folder', pos: [.07, .1] },
+  { id: 'cv', label: 'cv.pdf', icon: 'doc', pos: [.1, .52] },
+  { id: 'terminal', label: 'terminal.exe', icon: 'monitor', pos: [.82, .7] },
+  { id: 'contact', label: 'contact.eml', icon: 'mail', pos: [.86, .14] },
+  { id: 'trash', label: 'Corbeille', icon: 'trash', pos: [.22, .9] },
+];
+
+// ================= Icônes pixel art 32×32 (dessinées au pixel, shading + reflets "vernis") =================
+const W2 = 'rgba(255,255,255,', SPRITES = {
+  folder({ R, V, box }) {
+    const ol = '#5c3b0a';
+    R(3, 6, 10, 3, '#e0a33a'); box(2, 5, 12, 5, ol); R(3, 6, 9, 1, '#f6c869');
+    V(3, 8, 26, 17, ['#e9ab3e', '#d9962a', '#c4821f']); box(2, 7, 28, 19, ol); R(3, 8, 26, 1, '#f6c869');
+    R(8, 9, 18, 6, '#ecebe4'); R(6, 10, 19, 7, '#fdfdfb'); R(6, 10, 19, 1, '#fff'); R(24, 10, 1, 7, '#d9d9d2');
+    R(8, 12, 13, 1, '#c9c9c0'); R(8, 14, 9, 1, '#c9c9c0');
+    V(3, 14, 26, 12, ['#ffe9a0', '#ffd25a', '#f6c041', '#e9a92f', '#d9962a']); box(2, 13, 28, 14, ol);
+    R(3, 14, 26, 1, '#fff6c8'); R(3, 25, 26, 1, '#b8781c');
+    R(4, 16, 13, 1, W2 + '.7)'); R(4, 17, 7, 1, W2 + '.35)'); R(25, 23, 2, 1, W2 + '.5)');
+  },
+  doc({ R, V, P, box, g }) {
+    const ol = '#2b2d3a';
+    V(8, 4, 16, 24, ['#ffffff', '#f7f7fa', '#eeeef3', '#e4e4ec']);
+    for (let y = 4; y <= 8; y++) for (let x = 19; x <= 23; x++) if (x - 19 > y - 4) g.clearRect(x, y, 1, 1); // dog-ear cut
+    for (let y = 4; y <= 8; y++) for (let x = 19; x <= 23; x++) if (x - 19 <= y - 4 && x >= 19) P(x, y, x === 19 || y === 8 ? '#c4c4d0' : '#e2e2ea');
+    R(8, 3, 11, 1, ol); R(7, 4, 1, 24, ol); R(8, 28, 16, 1, ol); R(24, 9, 1, 19, ol);
+    for (let i = 0; i < 5; i++) P(19 + i, 3 + i, ol); P(24, 8, ol);
+    R(23, 9, 1, 19, '#d9d9e3'); R(8, 27, 15, 1, '#d9d9e3'); R(8, 4, 1, 23, '#fff');
+    for (const [y, w] of [[7, 8], [9, 6], [12, 12], [14, 10], [16, 12]]) R(10, y, w, 1, '#b8bccb');
+    V(4, 19, 15, 7, ['#ff7a6e', '#e53935', '#c62828']); box(3, 18, 17, 9, '#5c1010');
+    R(4, 19, 15, 1, W2 + '.5)');
+    const font = { P: ['111', '101', '111', '100', '100'], D: ['110', '101', '101', '101', '110'], F: ['111', '100', '110', '100', '100'] };
+    [...'PDF'].forEach((ch, i) => font[ch].forEach((row, y) => [...row].forEach((b, x) => b === '1' && P(6 + i * 4 + x, 20 + y, '#fff'))));
+  },
+  monitor({ R, V, P, box }) {
+    const ol = '#2a2620', shade = '#b0a68a';
+    V(3, 3, 26, 19, ['#f6f2e6', '#ebe5d3', '#ddd5bd', '#c9bfa3']); box(2, 2, 28, 21, ol);
+    R(3, 3, 26, 1, '#fffdf6'); R(3, 3, 1, 19, '#fffdf6'); R(28, 4, 1, 18, shade); R(4, 21, 24, 1, shade);
+    box(5, 5, 22, 14, '#6d6556');
+    V(6, 6, 20, 12, ['#3563b8', '#2a529c', '#1f417e', '#163261']);
+    for (let y = 7; y < 18; y += 2) R(6, y, 20, 1, 'rgba(0,0,0,.14)');
+    P(8, 8, '#8af58f'); P(9, 9, '#8af58f'); P(8, 10, '#8af58f'); R(11, 10, 3, 1, '#8af58f');
+    R(8, 12, 10, 1, '#8af58f'); R(8, 14, 5, 1, '#8af58f'); R(14, 14, 6, 1, '#9fd3ff'); R(19, 12, 2, 1, '#e8fff0');
+    R(7, 7, 8, 1, W2 + '.4)'); R(7, 8, 4, 1, W2 + '.22)'); R(7, 9, 2, 1, W2 + '.12)');
+    R(23, 20, 2, 1, '#3fdc66'); P(23, 20, '#a8ffbf');
+    V(13, 23, 6, 2, ['#cfc6ad', '#b3a98d']); R(12, 23, 1, 2, ol); R(19, 23, 1, 2, ol);
+    V(8, 25, 16, 3, ['#f1ebda', '#d4cbb0', '#b3a98d']); box(7, 24, 18, 5, ol); R(8, 25, 16, 1, '#fffdf6');
+  },
+  mail({ R, V, P, box, line }) {
+    const ol = '#3a3326';
+    V(3, 8, 26, 17, ['#fffef8', '#fbf6e8', '#f1e9d2', '#e6dcc0']); box(2, 7, 28, 19, ol);
+    for (let y = 8; y <= 17; y++) { const m = Math.round((y - 8) * 1.2); R(3 + m, y, Math.max(0, 26 - 2 * m), 1, '#f3ead2'); }
+    line(3, 24, 12, 17, '#cdbf9b'); line(28, 24, 19, 17, '#cdbf9b');
+    line(3, 8, 15, 18, ol); line(28, 8, 16, 18, ol);
+    R(3, 8, 11, 1, W2 + '.85)'); R(3, 9, 1, 8, W2 + '.6)');
+    R(14, 16, 4, 6, '#d43a32'); R(13, 17, 6, 4, '#d43a32'); R(14, 21, 4, 1, '#9e221c'); R(18, 18, 1, 3, '#9e221c');
+    P(14, 17, '#ff9a8a'); P(15, 17, '#ff6e60'); P(14, 18, '#ff6e60'); P(16, 19, '#a82620');
+  },
+  trash({ R, P, box }) {
+    const ol = '#2b2f36', ramp = ['#8e959f', '#c5cad2', '#eef0f3', '#d7dbe1', '#b6bcc5', '#9aa1ac', '#7c838e'];
+    box(12, 2, 8, 4, ol); R(13, 3, 6, 1, '#e8ebef');
+    for (let y = 10; y <= 28; y++) {
+      const k = Math.floor((y - 10) / 7), xl = 6 + k, xr = 25 - k;
+      for (let x = xl; x <= xr; x++) {
+        const c = ramp[Math.min(ramp.length - 1, Math.floor((x - xl) / (xr - xl + 1) * ramp.length))];
+        P(x, y, (x - xl) % 4 === 3 && y > 11 && y < 27 ? '#7c838e' : c);
+      }
+      P(xl - 1, y, ol); P(xr + 1, y, ol);
+    }
+    R(9, 29, 14, 1, ol); R(6, 10, 20, 1, '#6b727c');
+    R(10, 12, 1, 14, W2 + '.6)'); R(11, 12, 1, 6, W2 + '.3)');
+    for (const [x, y] of [[15, 15], [16, 15], [14, 16], [17, 16], [13, 17], [18, 17]]) P(x, y, '#2fbf5f'); R(13, 18, 6, 1, '#2fbf5f');
+    R(5, 6, 22, 3, '#c9ced6'); R(5, 6, 22, 1, '#f1f3f6'); R(5, 8, 22, 1, '#9aa1ac'); box(4, 5, 24, 5, ol); R(6, 6, 9, 1, W2 + '.9)');
+  },
+  avatar({ R, V, P }) {
+    const hair = '#3b2a20', skin = '#e8b384', skinD = '#d39a6a', skinL = '#f3c79d', lip = '#8a3b2e';
+    V(0, 0, 32, 32, ['#d6eeff', '#c4e5ff', '#b3dcfc', '#a5d3f8']);
+    V(5, 25, 22, 7, ['#6d8cf5', '#3a5bd9', '#2c46b3']); R(4, 27, 1, 5, '#2c46b3'); R(27, 27, 1, 5, '#2c46b3'); R(6, 25, 6, 1, '#8aa3ff');
+    R(13, 22, 6, 3, '#c98c5e'); R(13, 25, 2, 3, '#fff'); R(17, 25, 2, 3, '#fff');
+    R(10, 7, 12, 16, skin); R(9, 9, 14, 12, skin); R(21, 9, 2, 12, skinD); R(20, 21, 2, 1, skinD); R(10, 9, 1, 10, skinL);
+    R(7, 13, 2, 4, skin); R(23, 13, 2, 4, skinD); P(8, 14, skinD);
+    R(9, 3, 14, 5, hair); R(8, 4, 2, 9, hair); R(22, 4, 2, 9, hair); R(9, 7, 14, 2, hair); P(12, 9, hair); P(15, 9, hair); P(19, 9, hair);
+    R(11, 4, 6, 1, '#6b4a36'); R(10, 5, 3, 1, '#5a3e2c'); P(18, 4, '#5a3e2c');
+    R(11, 12, 4, 1, hair); R(17, 12, 4, 1, hair);
+    R(11, 14, 3, 2, '#fff'); R(18, 14, 3, 2, '#fff'); R(12, 14, 2, 2, '#1d1d1d'); R(19, 14, 2, 2, '#1d1d1d'); P(13, 14, '#fff'); P(20, 14, '#fff');
+    R(16, 15, 1, 3, skinD); P(15, 18, skinD); R(10, 18, 2, 1, '#f0a08a'); R(20, 18, 2, 1, '#f0a08a');
+    R(13, 20, 6, 1, lip); P(12, 19, lip); P(19, 19, lip);
+  },
+};
+const iconCache = {};
+function iconURL(name) {
+  if (iconCache[name]) return iconCache[name];
+  const cv = document.createElement('canvas'); cv.width = cv.height = 32; const g = cv.getContext('2d', { willReadFrequently: true });
+  const R = (x, y, w, h, c) => { g.fillStyle = c; g.fillRect(x, y, w, h); }, P = (x, y, c) => R(x, y, 1, 1, c);
+  // vertical colour ramp in bands, with a dithered row at each band change
+  const V = (x, y, w, h, ramp) => { for (let i = 0; i < h; i++) {
+    const b = Math.min(ramp.length - 1, Math.floor(i * ramp.length / h)), nb = Math.min(ramp.length - 1, Math.floor((i + 1) * ramp.length / h));
+    R(x, y + i, w, 1, ramp[b]); if (nb !== b) for (let k = (i & 1); k < w; k += 2) P(x + k, y + i, ramp[nb]); } };
+  const box = (x, y, w, h, c) => { R(x + 1, y, w - 2, 1, c); R(x + 1, y + h - 1, w - 2, 1, c); R(x, y + 1, 1, h - 2, c); R(x + w - 1, y + 1, 1, h - 2, c); };
+  const line = (x0, y0, x1, y1, c) => { const n = Math.max(Math.abs(x1 - x0), Math.abs(y1 - y0));
+    for (let i = 0; i <= n; i++) P(Math.round(x0 + (x1 - x0) * i / n), Math.round(y0 + (y1 - y0) * i / n), c); };
+  SPRITES[name]({ R, P, V, box, line, g });
+  // self-check: a sprite must actually draw something substantial
+  console.assert(g.getImageData(0, 0, 32, 32).data.filter((v, i) => i % 4 === 3 && v > 0).length > 150, 'empty sprite: ' + name);
+  return iconCache[name] = cv.toDataURL();
+}
+document.querySelectorAll('img[data-icon]').forEach(i => i.src = iconURL(i.dataset.icon));
+
+// ================= Contenu =================
+const $ = id => document.getElementById(id);
+const esc = s => String(s).replace(/[&<>"]/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[ch]));
+document.title = `${C.first} — Desktop`;
+if (matchMedia('(pointer: coarse)').matches) hint.textContent = 'Touche une icône pour l’ouvrir. Glisse les icônes et les fenêtres (par leur barre de titre) pour les déplacer.';
+hName.textContent = `Salut, moi c'est ${C.first}.`; hRole.textContent = C.role; hBio.textContent = C.bio; hStatus.textContent = C.status;
+startName.textContent = C.user; ps1.textContent = `${C.user}@desktop:~$`;
+pPath.textContent = `C:\\${C.first}\\projets`;
+mTo.value = C.email; mBody.placeholder = `Bonjour ${C.first},\n\n…`;
+mLinks.innerHTML = C.links.map(([t, h]) => `<a href="${esc(h)}" target="_blank" rel="noopener">${esc(t)} ↗</a>`).join('');
+const detail = o => Array.isArray(o) ? `<small>${esc(o[0])}</small><ul>${o.slice(1).map(l => `<li>${esc(l)}</li>`).join('')}</ul>` : `<small>${esc(o)}</small>`;
+const rows = list => list.map(([y, t, o]) => `<div class="job"><small>${esc(y)}</small><div><b>${esc(t)}</b><br>${detail(o)}</div></div>`).join('');
+cvPaper.innerHTML = `<h2>${esc(C.name)}</h2><div style="color:#6c6a64">${esc(C.role)} · ${esc(C.email)}</div>
+  <h3>Expérience</h3>${rows(C.jobs)}
+  <h3>Formation</h3>${rows(C.education)}
+  <h3>Compétences</h3>${C.skills.map(([n, v]) => `<div class="job"><small>${esc(n)}</small><div>${esc(v)}</div></div>`).join('')}
+  <h3>Langues</h3><div>${C.languages.map(esc).join(' · ')}</div>
+  <h3>Et aussi</h3>${C.extra.map(([n, v]) => `<div class="job"><small>${esc(n)}</small><div>${esc(v)}</div></div>`).join('')}`;
+
+// project thumbnails: little seeded pixel paintings
+function thumb(p, i) {
+  const cv = document.createElement('canvas'); cv.width = 24; cv.height = 18; const g = cv.getContext('2d');
+  let seed = 97 + i * 131; const r = () => (seed = seed * 16807 % 2147483647) / 2147483647;
+  g.fillStyle = '#101218'; g.fillRect(0, 0, 24, 18);
+  for (let y = 0; y < 18; y++) for (let x = 0; x < 24; x++) {
+    const d = Math.hypot(x - 8 - i % 3 * 3, y - 8) / 14 + r() * .25;
+    if (d < .9) { g.globalAlpha = 1 - d; g.fillStyle = p.c; g.fillRect(x, y, 1, 1); }
+  }
+  g.globalAlpha = 1; g.fillStyle = '#ffffffcc';
+  for (let k = 0; k < 3; k++) g.fillRect(2 + r() * 18 | 0, 2 + r() * 14 | 0, 1 + (r() * 4 | 0), 1);
+  return cv;
+}
+const nFiles = `${C.projects.length} objet(s)`;
+pStatus.textContent = nFiles;
+C.projects.forEach((p, i) => {
+  const b = document.createElement('button'); b.className = 'file';
+  b.append(thumb(p, i)); const s = document.createElement('span'); s.textContent = `${p.name.toLowerCase()}.${p.ext}`; b.append(s);
+  b.onclick = () => { files.querySelectorAll('.sel').forEach(e => e.classList.remove('sel')); b.classList.add('sel'); pStatus.textContent = `${p.name} — ${p.desc}${p.year ? ` · ${p.year}` : ''}`; };
+  files.append(b);
+});
+files.addEventListener('click', e => { if (e.target === files) { files.querySelectorAll('.sel').forEach(x => x.classList.remove('sel')); pStatus.textContent = nFiles; } });
+const renderTrash = () => trashList.innerHTML = C.trash.length
+  ? C.trash.map(t => `<li><img src="${iconURL(t.endsWith('/') ? 'folder' : 'doc')}" alt="">${esc(t)}</li>`).join('')
+  : '<li>La corbeille est vide. Ça fait du bien.</li>';
+renderTrash();
+emptyTrash.onclick = () => { C.trash = []; renderTrash(); };
+
+copyEmail.onclick = async () => {
+  try { await navigator.clipboard.writeText(C.email); copyEmail.textContent = 'Copié ✓'; }
+  catch { prompt("Copie l'email :", C.email); }
+  setTimeout(() => copyEmail.textContent = "Copier l'email", 1600);
+};
+bookCall.onclick = () => window.open(C.callUrl, '_blank', 'noopener');
+if (!C.callUrl) bookCall.style.display = 'none'; // .btn uses all:unset, which overrides [hidden]
+mailForm.onsubmit = e => { e.preventDefault();
+  location.href = `mailto:${C.email}?subject=${encodeURIComponent(mSubj.value)}&body=${encodeURIComponent(mBody.value)}`; };
+
+// ================= Gestionnaire de fenêtres =================
+const taskbar = document.querySelector('.taskbar'), mobile = () => innerWidth <= 700;
+const TBH = () => taskbar.offsetHeight; // taller on touch screens (see CSS)
+const clamp = (v, a, b) => Math.min(Math.max(v, a), b);
+const wins = Object.fromEntries([...document.querySelectorAll('.win')].map(w => [w.dataset.id, w]));
+let z = 10, active = null;
+
+for (const w of Object.values(wins)) {
+  w.classList.add('raised');
+  w.insertAdjacentHTML('afterbegin', `<div class="title"><img class="ti" src="${iconURL(w.dataset.icon)}" alt=""><span>${esc(w.dataset.title)}</span>
+    <div class="ctl"><button data-a="min" aria-label="Réduire">_</button><button data-a="max" aria-label="Agrandir">□</button><button data-a="close" aria-label="Fermer">×</button></div></div>`);
+  w.setAttribute('role', 'dialog'); w.setAttribute('aria-label', w.dataset.title);
+  const bar = w.querySelector('.title'), id = w.dataset.id;
+  w.addEventListener('pointerdown', () => focusWin(id));
+  w.querySelector('[data-a=min]').onclick = () => minimize(id);
+  w.querySelector('[data-a=max]').onclick = () => w.classList.toggle('max');
+  w.querySelector('[data-a=close]').onclick = () => closeWin(id);
+  bar.addEventListener('dblclick', e => { if (!e.target.closest('.ctl')) w.classList.toggle('max'); });
+  bar.addEventListener('pointerdown', e => {
+    if (e.target.closest('.ctl') || w.classList.contains('max')) return;
+    const dx = e.clientX - w.offsetLeft, dy = e.clientY - w.offsetTop;
+    bar.setPointerCapture(e.pointerId);
+    const move = ev => {
+      w.style.left = clamp(ev.clientX - dx, 80 - w.offsetWidth, innerWidth - 80) + 'px';
+      w.style.top = clamp(ev.clientY - dy, 0, innerHeight - TBH() - 22) + 'px';
+    };
+    const up = () => { bar.removeEventListener('pointermove', move); bar.removeEventListener('pointerup', up); };
+    bar.addEventListener('pointermove', move); bar.addEventListener('pointerup', up);
+  });
+}
+function place(w) {
+  const [fx, fy] = w.dataset.pos.split(',').map(Number);
+  if (mobile()) {
+    const top = w.dataset.id === 'hello' ? Math.min($('icons').lastElementChild.getBoundingClientRect().bottom + 16, innerHeight * .45) : 10;
+    w.style.left = '8px'; w.style.top = top + 'px'; w.style.maxHeight = (innerHeight - TBH() - top - 10) + 'px';
+    return;
+  }
+  w.style.maxHeight = (innerHeight - TBH() - 16) + 'px';
+  w.style.left = Math.round((innerWidth - w.offsetWidth) * fx) + 'px';
+  w.style.top = Math.round(clamp((innerHeight - TBH() - w.offsetHeight) * fy, 8, Math.max(8, innerHeight - TBH() - w.offsetHeight - 8))) + 'px';
+}
+function focusWin(id) {
+  const w = wins[id]; if (!w.classList.contains('open')) return;
+  if (active === id && +w.style.zIndex === z) return; // already in front: touch nothing
+  w.style.zIndex = ++z; active = id;
+  for (const x of Object.values(wins)) x.classList.toggle('active', x === w);
+  syncTasks();
+}
+// iOS Safari drops the click of a tap if pressing it inserts new visible content,
+// so focusing only flips states; the taskbar is rebuilt only when windows open or close.
+const syncTasks = () => tasks.querySelectorAll('.task').forEach(b => b.setAttribute('aria-pressed', b.dataset.id === active));
+const still = matchMedia('(prefers-reduced-motion: reduce)').matches;
+function openWin(id, from) {
+  const w = wins[id]; if (!w) return false;
+  if (!w.classList.contains('open')) {
+    w.classList.add('open'); place(w);
+    if (from && !still) { // item "pickup" hop, then the window zooms out of the icon
+      from.querySelector('.sprite').animate([{ scale: 1 }, { scale: 1.45, translate: '0 -14px' }, { scale: 1 }], { duration: 380, easing: 'ease-out' });
+      const a = from.getBoundingClientRect(), b = w.getBoundingClientRect();
+      w.animate([
+        { transform: `translate(${a.x + a.width / 2 - b.x - b.width / 2}px,${a.y + a.height / 2 - b.y - b.height / 2}px) scale(.06)`, opacity: .2 },
+        { transform: 'none', opacity: 1 }], { duration: 420, easing: 'cubic-bezier(.2,1.25,.4,1)' });
+    }
+  }
+  w.classList.remove('min'); focusWin(id); renderTasks(); closeStart();
+  if (id === 'terminal' && !mobile()) cmd.focus();
+  return true;
+}
+function closeWin(id) { wins[id].classList.remove('open', 'min', 'max', 'active'); if (active === id) active = null; renderTasks(); }
+function minimize(id) { wins[id].classList.add('min'); wins[id].classList.remove('active'); if (active === id) active = null; renderTasks(); }
+function renderTasks() {
+  tasks.innerHTML = '';
+  for (const [id, w] of Object.entries(wins)) if (w.classList.contains('open')) {
+    const b = document.createElement('button');
+    b.className = 'btn task'; b.setAttribute('aria-pressed', id === active); b.setAttribute('aria-label', w.dataset.title); b.dataset.id = id;
+    b.innerHTML = `<img src="${iconURL(w.dataset.icon)}" alt=""><span>${esc(w.dataset.title)}</span>`;
+    b.onclick = () => w.classList.contains('min') ? (w.classList.remove('min'), focusWin(id)) : id === active ? minimize(id) : focusWin(id);
+    tasks.append(b);
+  }
+}
+document.querySelectorAll('[data-open]').forEach(b => b.addEventListener('click', () => openWin(b.dataset.open)));
+
+// ================= Icônes du bureau =================
+function placeIcon(el, d) {
+  if (mobile()) { // 3-column grid until the icon is dragged, then wherever it was dropped
+    const i = DESK.indexOf(d), col = (innerWidth - 16) / 3;
+    const [x, y] = d.mpos ? [d.mpos[0] * innerWidth, d.mpos[1] * innerHeight] : [8 + (i % 3 + .5) * col - 48, 22 + (i / 3 | 0) * 104];
+    el.style.left = Math.round(x) + 'px'; el.style.top = Math.round(y) + 'px'; return;
+  }
+  el.style.left = Math.round(d.pos[0] * (innerWidth - 96)) + 'px';
+  el.style.top = Math.round(d.pos[1] * (innerHeight - TBH() - 100)) + 'px';
+}
+const deselect = () => document.querySelectorAll('.icon.sel').forEach(e => e.classList.remove('sel'));
+for (const d of DESK) {
+  const el = document.createElement('button');
+  const url = iconURL(d.icon);
+  el.className = 'icon'; el.innerHTML = `<div class="sprite" style="--m:url(${url})"><img src="${url}" alt=""><i></i></div><span>${esc(d.label)}</span>`;
+  $('icons').append(el); placeIcon(el, d);
+  el.addEventListener('pointerdown', e => {
+    deselect(); el.classList.add('sel'); el.moved = false;
+    const sx = e.clientX, sy = e.clientY, ox = el.offsetLeft, oy = el.offsetTop, slop = e.pointerType === 'mouse' ? 4 : 10; let moved = false;
+    el.setPointerCapture(e.pointerId);
+    const move = ev => {
+      const dx = ev.clientX - sx, dy = ev.clientY - sy;
+      if (!moved && Math.hypot(dx, dy) < slop) return; moved = el.moved = true;
+      el.style.left = clamp(ox + dx, 0, innerWidth - el.offsetWidth) + 'px';
+      el.style.top = clamp(oy + dy, 0, innerHeight - TBH() - el.offsetHeight) + 'px';
+    };
+    const up = () => {
+      el.removeEventListener('pointermove', move); el.removeEventListener('pointerup', up);
+      if (moved && mobile()) d.mpos = [el.offsetLeft / innerWidth, el.offsetTop / innerHeight];
+      else if (moved) d.pos = [el.offsetLeft / (innerWidth - 96), el.offsetTop / (innerHeight - TBH() - 100)];
+    };
+    el.addEventListener('pointermove', move); el.addEventListener('pointerup', up);
+  });
+  el.addEventListener('dblclick', () => { if (!el.moved) openWin(d.id, el); });
+  // keyboard (detail 0) and touch open on a single activation
+  el.addEventListener('click', e => { if (el.moved) return; if (e.detail === 0 || mobile() || matchMedia('(pointer: coarse)').matches) openWin(d.id, el); });
+  el.style.setProperty('--d', `${-DESK.indexOf(d) * .9}s`); // desync the bobbing
+  d.el = el;
+}
+$('icons').addEventListener('pointerdown', e => { if (e.target.id === 'icons') { deselect(); closeStart(); } });
+
+// ================= Menu Démarrer & horloge =================
+smSide.textContent = `${C.first} OS`;
+smList.innerHTML = [['hello', 'avatar', 'À propos'], ...DESK.map(d => [d.id, d.icon, d.label])]
+  .map(([id, ic, t]) => `<li><button data-open="${id}"><img src="${iconURL(ic)}" alt="">${esc(t)}</button></li>`).join('');
+smList.querySelectorAll('[data-open]').forEach(b => b.addEventListener('click', () => openWin(b.dataset.open)));
+function closeStart() { startMenu.hidden = true; startBtn.setAttribute('aria-pressed', false); startBtn.setAttribute('aria-expanded', false); }
+startBtn.onclick = () => { const open = startMenu.hidden; startMenu.hidden = !open; startBtn.setAttribute('aria-pressed', open); startBtn.setAttribute('aria-expanded', open); };
+addEventListener('keydown', e => { if (e.key === 'Escape') closeStart(); });
+const tick = () => clock.textContent = new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+tick(); setInterval(tick, 10000);
+
+// ================= Terminal =================
+function print(text, cls) {
+  for (const line of String(text).split('\n')) {
+    const d = document.createElement('div'); d.textContent = line || ' '; if (cls) d.className = cls; out.append(d);
+  }
+  term.scrollTop = term.scrollHeight;
+}
+const ALIAS = { hello: 'hello', about: 'hello', projets: 'projects', projects: 'projects', cv: 'cv', 'cv.pdf': 'cv', contact: 'contact', 'contact.eml': 'contact', corbeille: 'trash', trash: 'trash' };
+const CMDS = {
+  help: () => { print('Commandes :', 'hl'); return ['  whoami      qui suis-je', '  about       présentation', '  projets     liste des projets', '  skills      compétences',
+    '  contact     me joindre', '  open <nom>  ouvre une fenêtre (hello, projets, cv, contact, corbeille)', '  ls · cat · echo · date · meteo · clear · exit'].join('\n'); },
+  whoami: () => `${C.name} — ${C.role}`,
+  about: () => { openWin('hello'); return C.bio; },
+  projets: () => { print(`${C.projects.length} projets :`, 'hl'); return C.projects.map(p => `  ${p.year || '    '}  ${p.name}\n        ${p.desc}`).join('\n') + '\n→ `open projets` pour l\'explorateur'; },
+  skills: () => C.skills.map(([n, v]) => `  ${n.padEnd(11)} ${v}`).join('\n') + `\n  ${'Langues'.padEnd(11)} ${C.languages.join(', ')}`,
+  contact: () => { openWin('contact'); return `✉  ${C.email}\n` + C.links.map(([t, h]) => `↗  ${t}  ${h}`).join('\n'); },
+  open: ([n = '']) => ALIAS[n.toLowerCase()] && openWin(ALIAS[n.toLowerCase()]) ? `ouverture de ${n}…` : `open : « ${n} » introuvable`,
+  ls: () => 'projets/   cv.pdf   contact.eml   corbeille/',
+  cat: ([f = '']) => f === 'cv.pdf' ? (openWin('cv'), 'binaire PDF… ouverture dans le lecteur.') : `cat : ${f || '?'} : fichier introuvable`,
+  echo: a => a.join(' '),
+  date: () => new Date().toLocaleString('fr-FR'),
+  meteo: () => '☀  22°C, grand ciel bleu sur la prairie.',
+  sudo: () => 'Permission refusée. Bien essayé.',
+  clear: () => { out.innerHTML = ''; },
+  exit: () => { closeWin('terminal'); },
+};
+CMDS.projects = CMDS.projets;
+console.assert(['whoami', 'about', 'projets', 'skills', 'contact', 'open', 'ls', 'cat', 'echo', 'date', 'meteo', 'clear', 'exit'].every(k => CMDS[k]), 'missing terminal command');
+const hist = []; let hi = 0;
+function run(raw) {
+  const line = raw.trim(); print(`${ps1.textContent} ${line}`, 'muted'); if (!line) return;
+  hist.push(line); hi = hist.length;
+  const [name, ...args] = line.split(/\s+/); const fn = CMDS[name.toLowerCase()];
+  if (!fn) return print(`zsh: commande introuvable : ${name} — tape help`, 'err');
+  const r = fn(args); if (typeof r === 'string') print(r);
+}
+cmd.addEventListener('keydown', e => {
+  if (e.key === 'Enter') { run(cmd.value); cmd.value = ''; }
+  else if (e.key === 'ArrowUp') { e.preventDefault(); hi = Math.max(0, hi - 1); cmd.value = hist[hi] ?? ''; }
+  else if (e.key === 'ArrowDown') { e.preventDefault(); hi = Math.min(hist.length, hi + 1); cmd.value = hist[hi] ?? ''; }
+  else if (e.key === 'Tab') { e.preventDefault(); const m = Object.keys(CMDS).filter(k => k.startsWith(cmd.value.toLowerCase()));
+    if (m.length === 1) cmd.value = m[0] + ' '; else if (m.length) print(m.join('  '), 'muted'); }
+});
+term.addEventListener('click', () => { if (!getSelection().toString()) cmd.focus(); });
+print(`${C.first}OS 1.0 — tape \`help\` pour commencer.`, 'muted');
+
+// ================= Fond d'écran peint (prairie) =================
+// painted on an offscreen canvas, then kept as an image: browsers may drop a live canvas's pixels to free GPU memory
+const wall = $('wall');
+function paint() {
+  if (C.wallpaper) { wall.style.backgroundImage = `url("${C.wallpaper}")`; return; }
+  const dpr = Math.min(devicePixelRatio || 1, 1.5), W = innerWidth, H = innerHeight;
+  const cv = document.createElement('canvas'); cv.width = W * dpr; cv.height = H * dpr;
+  const g = cv.getContext('2d', { willReadFrequently: true }); g.setTransform(dpr, 0, 0, dpr, 0, 0); // CPU canvas: never evicted
+  let seed = 1337; const r = () => (seed = seed * 16807 % 2147483647) / 2147483647, rr = (a, b) => a + r() * (b - a);
+  const u = Math.max(W, H) / 1400;
+
+  const sky = g.createLinearGradient(0, 0, 0, H * .72);
+  sky.addColorStop(0, '#1d5cb6'); sky.addColorStop(.4, '#3f86d6'); sky.addColorStop(.8, '#9cc8ee'); sky.addColorStop(1, '#d7ebf8');
+  g.fillStyle = sky; g.fillRect(0, 0, W, H);
+
+  // wispy high streaks
+  for (let i = 0; i < 10; i++) { // soft ellipse = radial gradient in a squashed space (no ctx.filter: it is very slow on CPU canvases)
+    const rx = rr(140, 340) * u, ry = rr(8, 20) * u;
+    g.save(); g.translate(rr(0, W), rr(0, H * .35)); g.rotate(rr(-.12, .12)); g.scale(1, ry / rx);
+    const gr = g.createRadialGradient(0, 0, 0, 0, 0, rx); gr.addColorStop(0, `rgba(255,255,255,${rr(.18, .35)})`); gr.addColorStop(1, 'rgba(255,255,255,0)');
+    g.fillStyle = gr; g.beginPath(); g.arc(0, 0, rx, 0, 7); g.fill(); g.restore(); }
+  // cumulus: clusters of soft puffs, shaded underneath
+  const nC = Math.round(9 + 9 * W / 1400);
+  for (let i = 0; i < nC; i++) {
+    const cx = rr(-.05, 1.05) * W, cy = Math.pow(r(), 1.3) * H * .48 + 10, sc = rr(.6, 1.4) * Math.max(u, .8) * (.6 + cy / H), sp = rr(80, 190) * sc, n = 26 + (r() * 26 | 0);
+    for (let pass = 0; pass < 2; pass++) {
+      let s2 = seed;
+      for (let k = 0; k < n; k++) {
+        const px = cx + (r() - .5) * sp * 2, py = cy + (r() - .5) * sp * .28;
+        const rad = rr(38, 80) * sc * (1 - Math.min(.7, Math.abs(px - cx) / (sp * 1.3)));
+        const oy = pass === 0 ? rad * .35 : 0;
+        const gr = g.createRadialGradient(px, py - rad * .25 + oy, 0, px, py + oy, rad);
+        if (pass === 0) { gr.addColorStop(0, 'rgba(170,190,215,.55)'); gr.addColorStop(1, 'rgba(170,190,215,0)'); }
+        else { gr.addColorStop(0, 'rgba(255,255,255,.97)'); gr.addColorStop(.55, 'rgba(250,252,255,.75)'); gr.addColorStop(1, 'rgba(235,243,252,0)'); }
+        g.fillStyle = gr; g.beginPath(); g.arc(px, py + oy, rad, 0, 7); g.fill();
+      }
+      if (pass === 0) seed = s2; // replay the same puffs for the bright pass
+    }
+  }
+
+  // rolling hills, back to front
+  const L = [
+    { base: .62, a: [[.022, 1.3, .2], [.01, 3.1, 1.1]], top: '#a9c7b8', bot: '#8db191', l: [58, 68], dens: 0, len: [1, 1], trees: 0 },
+    { base: .665, a: [[.045, 1.1, 2.0], [.016, 2.7, .4]], top: '#a4c768', bot: '#729d3f', l: [40, 56], dens: .5, len: [1, 2], trees: 14 },
+    { base: .76, a: [[.06, .8, 4.1], [.02, 2.2, 1.7]], top: '#93c552', bot: '#5c8b2b', l: [32, 50], dens: 1.1, len: [2, 4], trees: 5 },
+    { base: .885, a: [[.04, .9, .7], [.015, 2.4, 3.3]], top: '#82b941', bot: '#3c6a1c', l: [22, 44], dens: 2.4, len: [4, 10], trees: 0 },
+  ];
+  const yAt = (l, x) => H * l.base + l.a.reduce((s, [A, f, p]) => s + Math.sin(x / W * Math.PI * 2 * f + p) * A * H, 0);
+  const path = (l, dy = 0) => { g.beginPath(); g.moveTo(-10, H); for (let x = -10; x <= W + 10; x += 4) g.lineTo(x, yAt(l, x) + dy); g.lineTo(W + 10, H); g.closePath(); };
+  L.forEach((l, i) => {
+    if (i) for (const d of [16, 10, 5]) { g.fillStyle = 'rgba(20,50,20,.07)'; path(l, -d * u); g.fill(); } // soft cast shadow
+    path(l);
+    const lg = g.createLinearGradient(0, H * (l.base - .07), 0, H); lg.addColorStop(0, l.top); lg.addColorStop(1, l.bot);
+    g.fillStyle = lg; g.fill();
+    g.save(); path(l); g.clip();
+    for (let k = 0; k < 6; k++) { // sun patches and cloud shadows
+      const x = rr(0, W), y = yAt(l, x) + rr(10, 90) * u, rad = rr(80, 260) * u, sun = r() < .6;
+      const gr = g.createRadialGradient(x, y, 0, x, y, rad);
+      gr.addColorStop(0, sun ? 'rgba(235,245,150,.16)' : 'rgba(20,45,15,.14)'); gr.addColorStop(1, 'rgba(0,0,0,0)');
+      g.fillStyle = gr; g.fillRect(x - rad, y - rad, rad * 2, rad * 2);
+    }
+    const count = W * l.dens * (H * (1 - l.base)) / 160 | 0;
+    g.lineWidth = Math.max(1, u * (i === 3 ? 1.2 : 1));
+    for (let k = 0; k < count; k++) {
+      const x = rr(-5, W + 5), y0 = yAt(l, x), t = Math.pow(r(), .85), y = y0 + t * (H - y0) + 2;
+      const len = rr(l.len[0], l.len[1]) * u * (.5 + t);
+      g.strokeStyle = `hsla(${rr(78, 104)},${rr(35, 60)}%,${rr(l.l[0], l.l[1])}%,.55)`;
+      g.beginPath(); g.moveTo(x, y); g.lineTo(x + rr(-.4, .4) * len, y - len); g.stroke();
+    }
+    g.restore();
+    for (let tr = 0; tr < l.trees; tr++) { // tree clumps hugging the crest
+      const x = rr(0, W), y = yAt(l, x) + rr(4, 40) * u * (i === 1 ? .6 : 1.4), n = 3 + (r() * 7 | 0), s = (i === 1 ? .6 : 1.3) * u;
+      g.fillStyle = 'rgba(15,35,10,.25)'; g.beginPath(); g.ellipse(x + 4 * s, y + 5 * s, n * 3 * s, 3 * s, 0, 0, 7); g.fill();
+      for (let k = 0; k < n; k++) { const rad = rr(3, 7) * s;
+        g.fillStyle = `hsl(${rr(95, 115)},${rr(35, 50)}%,${rr(17, 27)}%)`;
+        g.beginPath(); g.arc(x + rr(-n, n) * 2.2 * s, y - rr(0, 6) * s, rad, 0, 7); g.fill(); }
+    }
+    g.strokeStyle = 'rgba(235,250,175,.28)'; g.lineWidth = 2 * u; g.beginPath();
+    for (let x = -10; x <= W + 10; x += 4) g.lineTo(x, yAt(l, x) + 1); g.stroke();
+  });
+  const vg = g.createRadialGradient(W / 2, H * .45, Math.min(W, H) * .4, W / 2, H * .5, Math.max(W, H) * .8);
+  vg.addColorStop(0, 'rgba(0,0,0,0)'); vg.addColorStop(1, 'rgba(0,10,30,.22)');
+  g.fillStyle = vg; g.fillRect(0, 0, W, H);
+  wall.style.backgroundImage = `url("${cv.toDataURL('image/jpeg', .92)}")`;
+}
+paint();
+let rt;
+addEventListener('resize', () => {
+  clearTimeout(rt);
+  rt = setTimeout(() => {
+    paint();
+    DESK.forEach(d => placeIcon(d.el, d));
+    Object.values(wins).forEach(w => { if (w.classList.contains('open')) place(w); });
+  }, 120);
+});
+
+openWin('hello');
+</script>
+</body>
+</html>
