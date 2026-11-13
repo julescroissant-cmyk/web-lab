@@ -142,6 +142,8 @@
   .viewer img { display:block; max-width:100%; max-height:calc(100vh - 180px); }
   .win[data-id="viewer"] .content { padding:6px; }
 
+  .content.mood { padding:4px; } .content.mood img { display:block; width:100%; height:auto; }
+
   /* trash */
   .trash li { display:flex; align-items:center; gap:8px; padding:4px 2px; font:12px var(--pix); }
   .trash ul { list-style:none; margin:0; padding:10px; background:#fff; min-height:120px; }
@@ -274,7 +276,9 @@ const C = {
   status: 'En poste chez Konbini · ouvert aux échanges',
   email: atob('bW9jLmxpYW1nQHRuYXNzaW9yY3NlbHVq').split('').reverse().join(''), // email encodé (reverse + base64) pour les robots qui aspirent les adresses ; le décoder ici pour le modifier
   callUrl: '', // lien de prise de rendez-vous (Calendly, cal.com…) ; vide = bouton masqué
-  wallpaper: '', // URL d'une photo pour remplacer le fond peint (ex. 'prairie.jpg')
+  wallpapers: ['mood/mood-08.jpg', 'mood/mood-01.jpg'], // un fond tiré au hasard à chaque visite ; [] = prairie peinte
+  // images « mood » posées en vrac sur le bureau (2 ou 3 au hasard, sur grand écran)
+  moods: ['mood-02', 'mood-03', 'mood-04', 'mood-05', 'mood-06', 'mood-07'],
   links: [['LinkedIn', 'https://www.linkedin.com/in/julescroissant/']],
   // year: null quand l'année n'est pas connue
   // yt : identifiant YouTube (la partie après watch?v= ou youtu.be/) → miniature + lecteur intégré
@@ -385,6 +389,7 @@ const PHOTOS = [
   ['Konbini News', ['news-02', 'news-05', 'news-03', 'news-08']],
   ['Direction de la production', ['direction-02', 'direction-05', 'direction-11', 'direction-13']],
   ['Bureaux', ['bureau-03', 'bureau-02']],
+  ['Mood', ['mood-03', 'mood-08', 'mood-05', 'mood-06', 'mood-07', 'mood-02', 'mood-04', 'mood-01']],
 ];
 const DESK = [
   { id: 'projects', label: 'projets', icon: 'folder', pos: [.07, .1] },
@@ -563,10 +568,10 @@ for (const [stage, list] of PHOTOS) {
   const grid = document.createElement('div'); grid.className = 'thumbs';
   list.forEach((id, k) => {
     const b = document.createElement('button'); b.setAttribute('aria-label', `${stage}, photo ${k + 1}`);
-    const im = new Image(); im.src = `photos/${id}.jpg`; im.alt = ''; im.loading = 'lazy'; b.append(im);
+    const im = new Image(); im.src = id.startsWith('mood') ? `mood/${id}.jpg` : `photos/${id}.jpg`; im.alt = ''; im.loading = 'lazy'; b.append(im);
     b.onclick = () => {
-      viewImg.src = `../corridor/media/${id}.jpg`; viewImg.alt = `${stage}, photo ${k + 1}`;
-      viewInfo.innerHTML = `${esc(stage)} · ${k + 1} / ${list.length} · <a href="../corridor/" target="_blank" rel="noopener">voir dans le couloir ↗</a>`;
+      viewImg.src = id.startsWith('mood') ? `mood/${id}.jpg` : `../corridor/media/${id}.jpg`; viewImg.alt = `${stage}, photo ${k + 1}`;
+      viewInfo.innerHTML = `${esc(stage)} · ${k + 1} / ${list.length}` + (id.startsWith('mood') ? '' : ' · <a href="../corridor/" target="_blank" rel="noopener">voir dans le couloir ↗</a>');
       wins.viewer.querySelector('.title span').textContent = `${id}.jpg`;
       openWin('viewer');
     };
@@ -602,6 +607,20 @@ mailForm.onsubmit = e => { e.preventDefault();
 const taskbar = document.querySelector('.taskbar'), mobile = () => innerWidth <= 700;
 const TBH = () => taskbar.offsetHeight; // taller on touch screens (see CSS)
 const clamp = (v, a, b) => Math.min(Math.max(v, a), b);
+// fenêtres « mood » : de petites images ouvertes un peu au hasard
+const MOOD_SIZES = { 'mood-02': [596, 1280], 'mood-03': [828, 818], 'mood-04': [751, 1280], 'mood-05': [960, 1280], 'mood-06': [540, 540], 'mood-07': [632, 467] };
+const moodPick = C.moods.slice().sort(() => Math.random() - .5).slice(0, 2 + (Math.random() * 2 | 0));
+// emplacements autour de la fenêtre d'accueil (fractions largeur, hauteur), mélangés
+const MOOD_SLOTS = [[.3, .97], [.7, .95], [.95, .3], [.62, .04], [.18, .3]].sort(() => Math.random() - .5);
+for (const id of moodPick) {
+  const sec = document.createElement('section');
+  sec.className = 'win'; sec.dataset.id = id; sec.dataset.title = id + '.jpg'; sec.dataset.icon = 'doc';
+  sec.dataset.pos = MOOD_SLOTS.pop().join(',');
+  sec.style.setProperty('--w', `${170 + (Math.random() * 60 | 0)}px`);
+  const [iw, ih] = MOOD_SIZES[id] || [1, 1]; // tailles connues → la fenêtre a sa hauteur avant le chargement
+  sec.innerHTML = `<div class="content mood"><img src="mood/${id}.jpg" width="${iw}" height="${ih}" alt=""></div>`;
+  document.querySelector('.startmenu').before(sec);
+}
 const wins = Object.fromEntries([...document.querySelectorAll('.win')].map(w => [w.dataset.id, w]));
 let z = 10, active = null;
 
@@ -782,7 +801,7 @@ print(`${C.first}OS 1.0 — tape \`help\` pour commencer.`, 'muted');
 // painted on an offscreen canvas, then kept as an image: browsers may drop a live canvas's pixels to free GPU memory
 const wall = $('wall');
 function paint() {
-  if (C.wallpaper) { wall.style.backgroundImage = `url("${C.wallpaper}")`; return; }
+  if (wallpaper) { wall.style.backgroundImage = `url("${wallpaper}")`; return; }
   const dpr = Math.min(devicePixelRatio || 1, 1.5), W = innerWidth, H = innerHeight;
   const cv = document.createElement('canvas'); cv.width = W * dpr; cv.height = H * dpr;
   const g = cv.getContext('2d', { willReadFrequently: true }); g.setTransform(dpr, 0, 0, dpr, 0, 0); // CPU canvas: never evicted
@@ -863,6 +882,7 @@ function paint() {
   g.fillStyle = vg; g.fillRect(0, 0, W, H);
   wall.style.backgroundImage = `url("${cv.toDataURL('image/jpeg', .92)}")`;
 }
+const wallpaper = C.wallpapers.length ? C.wallpapers[Math.random() * C.wallpapers.length | 0] : '';
 paint();
 let rt;
 addEventListener('resize', () => {
@@ -874,6 +894,7 @@ addEventListener('resize', () => {
   }, 120);
 });
 
+if (!mobile()) moodPick.forEach(id => openWin(id));
 openWin('hello');
 </script>
 </body>

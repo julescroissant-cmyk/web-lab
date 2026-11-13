@@ -41,6 +41,10 @@
   .card dt { color:var(--dim); }
   .card .hint { margin-top:14px; color:var(--dim); text-transform:uppercase; }
   .card .hint:empty { display:none; }
+  .card .watch { display:inline-block; margin-top:16px; color:var(--fg); text-transform:uppercase; text-decoration:none;
+    border-bottom:1px solid var(--fg); pointer-events:auto; }
+  .card .watch:hover { color:var(--blue); border-color:var(--blue); }
+  .card .watch[hidden] { display:none; }
   .loading { position:fixed; left:50%; top:50%; transform:translate(-50%,-50%); color:var(--dim); text-transform:uppercase; }
   @media (max-width:700px) {
     .hud { padding:16px; }
@@ -65,7 +69,7 @@
     </div>
     <div class="keys">
       <kbd>↑</kbd><kbd>↓</kbd> / molette — avancer<br>
-      <kbd>←</kbd><kbd>→</kbd> — image précédente / suivante<br>
+      <kbd>←</kbd><kbd>→</kbd> — précédent / suivant<br>
       clic / <kbd>Entrée</kbd> — ouvrir · <kbd>Échap</kbd> — fermer
     </div>
     <div class="touch">Glisser ↕ avancer<br>Glisser ↔ regarder<br>Toucher — ouvrir</div>
@@ -76,6 +80,7 @@
   <h2 id="cardTitle"></h2>
   <p id="cardText"></p>
   <dl id="cardMeta"></dl>
+  <a class="watch" id="cardLink" target="_blank" rel="noopener">Regarder sur YouTube ↗</a>
   <div class="hint" id="cardHint"></div>
 </aside>
 <div class="loading" id="loading">Chargement…</div>
@@ -85,89 +90,61 @@
 import * as THREE from 'three';
 
 // ================= Contenu =================
-// Les étapes du parcours, dans l'ordre du couloir. Chaque étape ouvre sur un panneau.
-const STAGES = [
-  { id: 'etudes',    title: 'Études',                            years: '2016 — 2021',      role: 'Lyon · Séoul · Paris',
-    text: 'Science politique à Lyon 2, échange à Chung-Ang University, master de production audiovisuelle à Paris 3.' },
-  { id: 'konbini',   title: 'Arrivée chez Konbini',               years: '2020 — 2021',      role: 'Assistant de production',
-    text: 'Stage, CDD puis alternance : tournages Konbini Pop, planning, assistanat post-production.' },
-  { id: 'news',      title: 'Konbini News',                      years: '2021 — 2025',      role: 'Chargé de production éditoriale',
-    text: 'Reportages et tournages en France et à l’étranger, formats longs, présidentielle 2022.' },
-  { id: 'direction', title: 'Direction de la production éditoriale', years: '2025 — 2026',  role: 'Directeur de production éditoriale',
-    text: 'Budget, outils et process de production, équipes image et montage.' },
-  { id: 'head',      title: 'Head of Production',                years: '2026 — aujourd’hui', role: 'Konbini',
-    text: 'Co-direction du département Production, éditorial et brand content.' },
-  { id: 'bureau',    title: 'À-côtés',                           years: '',                 role: 'Bureaux',
-    text: 'Le bordel des bureaux, qui a son charme.' },
-  { id: 'mood',      title: 'Mood',                              years: '',                 role: '',
-    text: '' },
-];
-// Médias (générés) : [fichier, largeur/hauteur, type]
-const MEDIA = [
-  ['etudes-01', 1.3333, 'photo'],
-  ['etudes-02', 0.7500, 'photo'],
-  ['etudes-03', 0.7500, 'photo'],
-  ['etudes-04', 1.4679, 'photo'],
-  ['konbini-01', 0.7500, 'photo'],
-  ['konbini-02', 1.3333, 'photo'],
-  ['konbini-03', 0.7500, 'photo'],
-  ['konbini-04', 0.7500, 'photo'],
-  ['konbini-05', 0.7500, 'photo'],
-  ['konbini-06', 1.3333, 'photo'],
-  ['konbini-07', 0.9867, 'photo'],
-  ['konbini-08', 0.6227, 'photo'],
-  ['konbini-09', 1.3333, 'photo'],
-  ['news-01', 0.7500, 'photo'],
-  ['news-02', 0.7500, 'photo'],
-  ['news-03', 1.3333, 'photo'],
-  ['news-04', 0.7500, 'photo'],
-  ['news-05', 0.7500, 'photo'],
-  ['news-06', 0.5625, 'video'],
-  ['news-07', 0.5625, 'video'],
-  ['news-08', 0.7500, 'photo'],
-  ['news-09', 0.7500, 'photo'],
-  ['news-10', 0.7500, 'photo'],
-  ['news-11', 0.7500, 'photo'],
-  ['news-12', 0.7500, 'photo'],
-  ['news-13', 0.7500, 'photo'],
-  ['news-14', 0.7500, 'photo'],
-  ['direction-01', 0.7500, 'photo'],
-  ['direction-02', 0.7500, 'photo'],
-  ['direction-03', 0.7500, 'photo'],
-  ['direction-04', 1.0000, 'photo'],
-  ['direction-05', 1.0000, 'photo'],
-  ['direction-06', 1.3333, 'photo'],
-  ['direction-07', 0.7500, 'photo'],
-  ['direction-08', 1.3333, 'photo'],
-  ['direction-09', 0.7500, 'photo'],
-  ['direction-10', 1.3333, 'photo'],
-  ['direction-11', 0.7500, 'photo'],
-  ['direction-12', 1.3333, 'photo'],
-  ['direction-13', 0.7500, 'photo'],
-  ['bureau-01', 0.7500, 'photo'],
-  ['bureau-02', 0.7500, 'photo'],
-  ['bureau-03', 1.3333, 'photo'],
-  ['bureau-04', 1.3333, 'photo'],
-  ['bureau-05', 1.3333, 'photo'],
-  ['bureau-06', 0.7500, 'photo'],
-  ['bureau-07', 0.7500, 'photo'],
-  ['bureau-08', 0.7500, 'photo'],
-  ['mood-01', 1.4798, 'photo'],
-  ['mood-02', 0.4656, 'photo'],
-  ['mood-03', 1.0122, 'photo'],
-  ['mood-04', 0.5867, 'photo'],
-  ['mood-05', 0.7500, 'photo'],
-  ['mood-06', 1.0000, 'photo'],
-  ['mood-07', 1.3533, 'photo'],
-  ['mood-08', 1.7778, 'photo'],
-];
-// Légendes : clé = nom du fichier. Laisser vide = pas de légende.
-const CAPTIONS = {
-  // 'etudes-01': { title: 'Lyon 2', text: '…', year: '2017', place: 'Lyon' },
+// Projets mis en avant : yt = identifiant YouTube. text = ta description (vide = rien d'affiché).
+const PROJECTS = {
+  bwWgcEKt4E4: { title: 'Emmanuel Macron · urgence climatique', format: 'Interview présidentielle', year: '2022', text: '' },
+  'a-vN-7s14Kg': { title: 'Colonia Dignidad', format: 'Reportage au Chili', year: '', text: '' },
+  WzbVKaBdHJI: { title: 'Accusé à tort', format: 'Konbini Documentaire', year: '', text: '' },
+  qkyXoi0LyFw: { title: 'La Chesnaie', format: 'Reportage', year: '', text: '' },
+  LNldcBoiNbk: { title: 'Ukraine', format: 'Reportage', year: '', text: '' },
+  '8dPnqTP9ZMQ': { title: 'Make Avortement Great Again', format: 'Reportage aux États-Unis', year: '', text: '' },
+  xOWNDgb_kDo: { title: 'XXL', format: 'Reportage', year: '', text: '' },
+  GVqOtVfTAd4: { title: 'Small Talk · Adèle Exarchopoulos', format: 'Small Talk', year: '', text: '' },
+  iurBzLRrQRQ: { title: 'Vidéo Club · Brad Pitt', format: 'Vidéo Club', year: '', text: '' },
+  i5x2hm7Epdc: { title: 'Jeux Vidéo Club · Guillaume Broche', format: 'Jeux Vidéo Club', year: '', text: '' },
+  PxbymaIm_0k: { title: 'Processus · Disiz', format: 'Création de format', year: '', text: '' },
+  oQNhcCQ11QU: { title: 'Walk and Talk · Anyme', format: 'Création de format', year: '', text: '' },
+  'A-tHMViRwKM': { title: 'Open Files · Trump, tech et manipulation', format: 'Création de format', year: '', text: '' },
+  '9X2Wn5pQ9kw': { title: 'Carte Blanche · Mister V', format: 'One shot', year: '', text: '' },
+  UfmRgJmdplo: { title: 'Vidéo Club · Regelegorila', format: 'Vidéo Club', year: '', text: '' },
 };
+// Le parcours. Dans chaque étape, dans l'ordre du couloir :
+//   { p: 'idYouTube' }                       → un projet (le cœur de l'étape)
+//   { g: 'Titre', photos: [...] , text: '' } → un groupe de photos (5 max) : une seule au mur, les autres arrivent au clic
+//   { v: 'news-06' }                          → un showreel vidéo
+//   { ph: 'bureau-01' }                       → une photo seule (expo bureau)
+const STAGES = [
+  { id: 'etudes', title: 'Études', years: '2016 — 2021', role: 'Lyon · Séoul · Paris',
+    text: 'Science politique à Lyon 2, échange à Chung-Ang University, master de production audiovisuelle à Paris 3.',
+    items: [ { g: 'Lyon, puis Séoul', photos: ['etudes-01', 'etudes-02', 'etudes-03'] }, { g: 'Le mémoire', photos: ['etudes-04'] } ] },
+  { id: 'konbini', title: 'Arrivée chez Konbini', years: '2020 — 2021', role: 'Assistant de production',
+    text: 'Stage, CDD puis alternance : tournages Konbini Pop, planning, assistanat post-production.',
+    items: [ { g: 'Premiers jours', photos: ['konbini-03', 'konbini-01'] },
+             { g: 'Les plateaux', photos: ['konbini-06', 'konbini-04', 'konbini-05', 'konbini-09', 'konbini-02'] },
+             { g: 'Dans le détail', photos: ['konbini-07', 'konbini-08'] } ] },
+  { id: 'news', title: 'Konbini News', years: '2021 — 2025', role: 'Chargé de production éditoriale',
+    text: 'Reportages et tournages en France et à l’étranger, formats longs, présidentielle 2022.',
+    items: [ { p: 'bwWgcEKt4E4' }, { g: 'Présidentielle 2022', photos: ['news-05'] },
+             { p: 'a-vN-7s14Kg' }, { g: 'Sur le terrain', photos: ['news-08', 'news-09', 'news-04', 'news-10', 'news-14'] },
+             { v: 'news-06' }, { p: 'WzbVKaBdHJI' }, { p: 'qkyXoi0LyFw' },
+             { g: 'La rédac', photos: ['news-11', 'news-12', 'news-02', 'news-01', 'news-13'] },
+             { p: 'LNldcBoiNbk' }, { g: 'Post-prod', photos: ['news-03'] }, { p: '8dPnqTP9ZMQ' }, { v: 'news-07' }, { p: 'xOWNDgb_kDo' } ] },
+  { id: 'direction', title: 'Direction de la production éditoriale', years: '2025 — 2026', role: 'Directeur de production éditoriale',
+    text: 'Budget, outils et process de production, équipes image et montage.',
+    items: [ { p: 'GVqOtVfTAd4' }, { g: 'Café Konbini', photos: ['direction-10', 'direction-02', 'direction-12', 'direction-03'] },
+             { p: 'iurBzLRrQRQ' }, { g: 'Studios', photos: ['direction-13', 'direction-05', 'direction-09', 'direction-01'] },
+             { p: 'i5x2hm7Epdc' }, { g: 'Coulisses', photos: ['direction-06', 'direction-07', 'direction-08', 'direction-04', 'direction-11'] } ] },
+  { id: 'head', title: 'Head of Production', years: '2026 — aujourd’hui', role: 'Konbini',
+    text: 'Co-direction du département Production, éditorial et brand content.',
+    items: [ { p: 'PxbymaIm_0k' }, { p: 'oQNhcCQ11QU' }, { p: 'A-tHMViRwKM' }, { p: '9X2Wn5pQ9kw' }, { p: 'UfmRgJmdplo' } ] },
+  { id: 'bureau', title: 'Bureau en bordel', years: '', role: 'Exposition',
+    text: 'Huit bureaux, aucun rangement.',
+    items: ['bureau-01', 'bureau-02', 'bureau-03', 'bureau-04', 'bureau-05', 'bureau-06', 'bureau-07', 'bureau-08'].map(ph => ({ ph })) },
+];
+const RATIO = {"etudes-01": 1.3333, "etudes-02": 0.75, "etudes-03": 0.75, "etudes-04": 1.4679, "konbini-01": 0.75, "konbini-02": 1.3333, "konbini-03": 0.75, "konbini-04": 0.75, "konbini-05": 0.75, "konbini-06": 1.3333, "konbini-07": 0.9867, "konbini-08": 0.6227, "konbini-09": 1.3333, "news-01": 0.75, "news-02": 0.75, "news-03": 1.3333, "news-04": 0.75, "news-05": 0.75, "news-06": 0.5625, "news-07": 0.5625, "news-08": 0.75, "news-09": 0.75, "news-10": 0.75, "news-11": 0.75, "news-12": 0.75, "news-13": 0.75, "news-14": 0.75, "direction-01": 0.75, "direction-02": 0.75, "direction-03": 0.75, "direction-04": 1.0, "direction-05": 1.0, "direction-06": 1.3333, "direction-07": 0.75, "direction-08": 1.3333, "direction-09": 0.75, "direction-10": 1.3333, "direction-11": 0.75, "direction-12": 1.3333, "direction-13": 0.75, "bureau-01": 0.75, "bureau-02": 0.75, "bureau-03": 1.3333, "bureau-04": 1.3333, "bureau-05": 1.3333, "bureau-06": 0.75, "bureau-07": 0.75, "bureau-08": 0.75};
 
 // ================= Couloir : un chemin qui ondule, s = distance le long =================
-const W = 6, H = 4, STEP = 5, PANEL_GAP = 9, START = 6, UP = new THREE.Vector3(0, 1, 0);
+const W = 6, H = 4, START = 6, D = 3, UP = new THREE.Vector3(0, 1, 0);
 const center = s => new THREE.Vector3(Math.sin(s * .06) * 5 + Math.sin(s * .023) * 3, Math.sin(s * .04) * .8, -s);
 function frame(s) {
   const c = center(s), T = center(s + .01).sub(c).normalize();
@@ -176,22 +153,38 @@ function frame(s) {
   return { c, T, R, U };
 }
 const at = (s, a, b) => { const f = frame(s); return f.c.addScaledVector(f.R, a).addScaledVector(f.U, b); };
+let seed = 11; const rnd = () => (seed = seed * 16807 % 2147483647) / 2147483647;
 
-// Liste à plat : panneau d'étape puis ses médias
+// Accrochage : espacements, côtés, hauteurs et tailles irréguliers (mais toujours les mêmes d'une visite à l'autre)
 const ENTRIES = [];
-{ let s = START, side = -1;
-  for (const st of STAGES) {
-    const media = MEDIA.filter(m => m[0].startsWith(st.id + '-'));
-    ENTRIES.push({ kind: 'panel', stage: st, s, side, ratio: .8 }); side = -side; s += PANEL_GAP;
-    media.forEach(([id, ratio, kind], k) => {
-      ENTRIES.push({ kind, id, stage: st, n: k + 1, of: media.length, s, side, ratio, cap: CAPTIONS[id] || {} });
-      side = -side; s += STEP;
+{ let s = START, prevSide = 1, prevW = 0;
+  const hang = (e, w, h, gap, yJit) => {
+    const side = e.kind === 'panel' ? -prevSide : (rnd() < .68 ? -prevSide : prevSide);
+    if (side === prevSide) gap = Math.max(gap, prevW / 2 + w / 2 + .6);
+    s += gap;
+    let y = (rnd() - .5) * yJit; y = Math.min(Math.max(y, -1.75 + h / 2), 1.75 - h / 2);
+    ENTRIES.push({ ...e, s, side, w, h, y }); prevSide = side; prevW = w;
+  };
+  STAGES.forEach((st, si) => {
+    if (si) s += 5;
+    hang({ kind: 'panel', stage: st }, 1.9, 2.4, si ? 3 : 0, .1);
+    const expo = st.id === 'bureau';
+    st.items.forEach((it, k) => {
+      const first = k === 0 ? 3 : 0;
+      if (it.p) { const w = 2.7 + rnd() * .5; hang({ kind: 'project', stage: st, yt: it.p, info: PROJECTS[it.p] }, w, w * 9 / 16, first + 3.2 + rnd() * 3.6, .5); }
+      else if (it.v) { const h = 1.9 + rnd() * .3; hang({ kind: 'video', stage: st, id: it.v }, h * 9 / 16, h, first + 2.4 + rnd() * 3, .3); }
+      else {
+        const id = it.ph || it.photos[0], r = RATIO[id], m = expo ? .55 + rnd() * .55 : .8 + rnd() * .3;
+        let w = 2.1 * m, h = w / r; if (h > 1.7 * m) { h = 1.7 * m; w = h * r; }
+        const e = it.ph ? { kind: 'photo', stage: st, id } : { kind: 'group', stage: st, id, title: it.g, text: it.text || '', photos: it.photos };
+        hang(e, w, h, first + (expo ? .9 + rnd() * 1.2 : 2 + rnd() * 3.8), expo ? 1.6 : .7);
+      }
     });
-    s += PANEL_GAP - STEP;
-  }
+  });
 }
 const COUNT = ENTRIES.length;
 const S_MIN = -16, S_LAST = ENTRIES[COUNT - 1].s, S_END = S_LAST + 24, S_MAX_CAM = S_LAST - 3;
+STAGES.forEach(st => { const list = ENTRIES.filter(e => e.stage === st && e.kind !== 'panel'); list.forEach((e, k) => { e.n = k + 1; e.of = list.length; }); });
 
 // ================= Scène =================
 let renderer;
@@ -204,8 +197,8 @@ const scene = new THREE.Scene();
 scene.background = new THREE.Color(0xffffff);
 scene.fog = new THREE.FogExp2(0xffffff, .05);
 const camera = new THREE.PerspectiveCamera(60, innerWidth / innerHeight, .05, 200);
+scene.add(camera); // les images ouvertes vivent devant la caméra
 
-// Grille filaire qui s'illumine près des images (8 lumières : les plus proches de la caméra)
 const pts = [], seg = (p, q) => pts.push(p.x, p.y, p.z, q.x, q.y, q.z);
 for (let s = S_MIN; s <= S_END; s += 1.5) {
   const c = [[-W/2,-H/2],[W/2,-H/2],[W/2,H/2],[-W/2,H/2]].map(([a, b]) => at(s, a, b));
@@ -235,115 +228,175 @@ const gridMat = new THREE.ShaderMaterial({
 scene.add(new THREE.LineSegments(gridGeo, gridMat));
 await document.fonts.ready;
 
-// Panneau d'étape : texte dessiné sur un canvas
+const aniso = renderer.capabilities.getMaxAnisotropy();
+const tex = t => { t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = aniso; return t; };
+function canvasTex(w, h, draw) { const c = document.createElement('canvas'); c.width = w; c.height = h; draw(c.getContext('2d')); return tex(new THREE.CanvasTexture(c)); }
 function panelTexture(st, idx) {
-  const c = document.createElement('canvas'); c.width = 800; c.height = 1000;
-  const g = c.getContext('2d');
-  g.fillStyle = '#ffffff'; g.fillRect(0, 0, 800, 1000);
-  g.strokeStyle = '#1f54f0'; g.lineWidth = 6; g.strokeRect(24, 24, 752, 952);
-  g.fillStyle = '#6b7391'; g.font = '500 30px "JetBrains Mono", monospace';
-  g.fillText(idx, 72, 120);
-  g.fillText((st.years || '').toUpperCase(), 72, 900);
-  g.fillStyle = '#0f1a3d'; g.font = '400 112px "Instrument Serif", serif';
-  const words = st.title.split(' '); let line = '', y = 300;
-  for (const w of words) { const t = line ? line + ' ' + w : w;
-    if (g.measureText(t).width > 650 && line) { g.fillText(line, 72, y); line = w; y += 108; } else line = t; }
-  g.fillText(line, 72, y);
-  g.fillStyle = '#1f54f0'; g.font = 'italic 400 54px "Instrument Serif", serif';
-  if (st.role) g.fillText(st.role, 72, y + 96);
-  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = renderer.capabilities.getMaxAnisotropy();
-  return t;
+  return canvasTex(800, 1000, g => {
+    g.fillStyle = '#ffffff'; g.fillRect(0, 0, 800, 1000);
+    g.strokeStyle = '#1f54f0'; g.lineWidth = 6; g.strokeRect(24, 24, 752, 952);
+    g.fillStyle = '#6b7391'; g.font = '500 30px "JetBrains Mono", monospace';
+    g.fillText(idx, 72, 120); g.fillText((st.years || '').toUpperCase(), 72, 900);
+    g.fillStyle = '#0f1a3d'; g.font = '400 112px "Instrument Serif", serif';
+    let line = '', y = 300;
+    for (const w of st.title.split(' ')) { const t = line ? line + ' ' + w : w;
+      if (g.measureText(t).width > 650 && line) { g.fillText(line, 72, y); line = w; y += 108; } else line = t; }
+    g.fillText(line, 72, y);
+    g.fillStyle = '#1f54f0'; g.font = 'italic 400 54px "Instrument Serif", serif';
+    if (st.role) g.fillText(st.role, 72, y + 96);
+  });
 }
+const badgeTexture = n => canvasTex(160, 80, g => {
+  g.fillStyle = '#1f54f0'; g.fillRect(0, 0, 160, 80);
+  g.fillStyle = '#fff'; g.font = '500 44px "JetBrains Mono", monospace'; g.textAlign = 'center'; g.fillText(`+${n}`, 80, 56);
+});
 
 // ================= Accrochage =================
-const MAXW = 2.4, MAXH = 1.9, PANEL_H = 2.5;
-const loader = new THREE.TextureLoader();
+const UNIT = new THREE.PlaneGeometry(1, 1), EDGE = new THREE.EdgesGeometry(new THREE.PlaneGeometry(1, 1));
+const EMPTY = 0xe9eefc;
+function framed(mat, w, h) {
+  const mesh = new THREE.Mesh(UNIT, mat); mesh.scale.set(w, h, 1);
+  const f = new THREE.LineSegments(EDGE, new THREE.LineBasicMaterial({ color: 0x1f54f0 }));
+  f.scale.set(1 + .12 / w, 1 + .12 / h, 1); mesh.add(f); mesh.userData.frame = f;
+  return mesh;
+}
+const loader = new THREE.TextureLoader().setCrossOrigin('anonymous');
+function loadInto(mat, url, done) { loader.load(url, t => { mat.map = tex(t); mat.color.set(0xffffff); mat.needsUpdate = true; done?.(); }); }
+// miniature YouTube : maxresdefault n'existe pas toujours (YouTube répond alors par une image grise de 120 px)
+function ytInto(mat, id, done) {
+  const set = (t, crop) => { if (crop) { t.repeat.set(1, .75); t.offset.set(0, .125); } mat.map = tex(t); mat.color.set(0xffffff); mat.needsUpdate = true; done?.(); };
+  const hq = () => loader.load(`https://i.ytimg.com/vi/${id}/hqdefault.jpg`, t => set(t, true));
+  loader.load(`https://i.ytimg.com/vi/${id}/maxresdefault.jpg`, t => t.image.width > 200 ? set(t, false) : (t.dispose(), hq()), undefined, hq);
+}
+
 const arts = [];
 let stageNo = 0;
-ENTRIES.forEach((e, i) => {
-  const isPanel = e.kind === 'panel';
-  if (isPanel) stageNo++;
-  let w, h;
-  if (isPanel) { h = PANEL_H; w = h * e.ratio; }
-  else { w = MAXW; h = w / e.ratio; if (h > MAXH) { h = MAXH; w = h * e.ratio; } }
+for (const e of ENTRIES) {
+  if (e.kind === 'panel') stageNo++;
   const f = frame(e.s), side = e.side;
   const z = f.R.clone().multiplyScalar(-side), y = f.U.clone(), x = new THREE.Vector3().crossVectors(y, z);
   const wallQuat = new THREE.Quaternion().setFromRotationMatrix(new THREE.Matrix4().makeBasis(x, y, z));
-  const wallPos = f.c.clone().addScaledVector(f.R, side * (W / 2 - .04)).addScaledVector(f.U, isPanel ? .1 : .15);
-  const mat = new THREE.MeshBasicMaterial({ color: isPanel ? 0xffffff : 0xe9eefc, map: isPanel ? panelTexture(e.stage, String(stageNo).padStart(2, '0') + ' / ' + STAGES.length) : null });
-  const mesh = new THREE.Mesh(new THREE.PlaneGeometry(w, h), mat);
-  if (!isPanel) mesh.add(new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.PlaneGeometry(w + .12, h + .12)), new THREE.LineBasicMaterial({ color: 0x1f54f0 })));
-  mesh.position.copy(wallPos); mesh.quaternion.copy(wallQuat);
-  scene.add(mesh);
-  const light = wallPos.clone().addScaledVector(f.R, -side * 1.2);
-  arts.push({ ...e, i, mesh, mat, w, h, wallPos, wallQuat, light, t: 0, hover: 0, pow: 0, loaded: isPanel, loading: false, video: null });
-});
-const meshes = arts.map(a => a.mesh);
+  const wallPos = f.c.clone().addScaledVector(f.R, side * (W / 2 - .04)).addScaledVector(f.U, e.y);
+  const mat = new THREE.MeshBasicMaterial({ color: e.kind === 'panel' ? 0xffffff : EMPTY,
+    map: e.kind === 'panel' ? panelTexture(e.stage, String(stageNo).padStart(2, '0') + ' / ' + STAGES.length) : null });
+  const mesh = framed(mat, e.w, e.h);
+  if (e.kind === 'panel') mesh.userData.frame.visible = false;
+  mesh.position.copy(wallPos); mesh.quaternion.copy(wallQuat); scene.add(mesh);
+  const a = { ...e, mesh, mat, wallPos, wallQuat, light: wallPos.clone().addScaledVector(f.R, -side * 1.2),
+    t: 0, hover: 0, pow: 0, loaded: e.kind === 'panel', loading: false, video: null, extra: [], cell: null, badge: null };
+  if (e.kind === 'group' && e.photos.length > 1) {
+    // pile : un ou deux cadres décalés derrière + pastille « +N »
+    for (let j = 1; j <= Math.min(2, e.photos.length - 1); j++) {
+      const ghost = framed(new THREE.MeshBasicMaterial({ color: 0xf4f6fe }), e.w, e.h);
+      ghost.position.copy(wallPos).addScaledVector(x, .12 * j).addScaledVector(y, -.1 * j).addScaledVector(z, -.004 * j);
+      ghost.quaternion.copy(wallQuat).multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 0, 1), .035 * j * side));
+      scene.add(ghost);
+    }
+    const badge = new THREE.Mesh(new THREE.PlaneGeometry(.36, .18), new THREE.MeshBasicMaterial({ map: badgeTexture(e.photos.length - 1) }));
+    badge.position.copy(wallPos).addScaledVector(x, e.w / 2 - .12).addScaledVector(y, e.h / 2 + .02).addScaledVector(z, .01);
+    badge.quaternion.copy(wallQuat); scene.add(badge); a.badge = badge;
+    a.extra = e.photos.slice(1).map((id, k) => ({ id, ratio: RATIO[id], mesh: null, t: 0, delay: .12 + k * .09, start: new THREE.Vector3(), rz: 0 }));
+  }
+  arts.push(a);
+}
+const covers = arts.map(a => a.mesh);
 loading.remove();
 
-// Chargement paresseux : seules les images proches occupent la mémoire (important sur téléphone)
+// Chargement paresseux des images du mur (important sur téléphone)
 const NEAR = 30, FAR = 45;
 function stream(a, dist) {
   if (a.kind === 'panel') return;
   if (dist < NEAR && !a.loaded && !a.loading) {
-    a.loading = true;
-    const done = t => { t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = renderer.capabilities.getMaxAnisotropy();
-      a.mat.map = t; a.mat.color.set(0xffffff); a.mat.needsUpdate = true; a.loaded = true; a.loading = false; };
-    if (a.kind === 'video') {
+    a.loading = true; const done = () => { a.loaded = true; a.loading = false; };
+    if (a.kind === 'project') ytInto(a.mat, a.yt, done);
+    else if (a.kind === 'video') {
       const v = document.createElement('video');
       Object.assign(v, { src: `media/${a.id}.mp4`, poster: `media/${a.id}.jpg`, muted: true, loop: true, playsInline: true, preload: 'auto' });
       v.setAttribute('playsinline', ''); v.setAttribute('muted', '');
       a.video = v; v.play().catch(() => {});
-      done(new THREE.VideoTexture(v));
-    } else loader.load(`media/${a.id}.jpg`, done, undefined, () => { a.loading = false; });
-  } else if (dist > FAR && a.loaded && a !== selected) {
-    a.mat.map.dispose(); a.mat.map = null; a.mat.color.set(0xe9eefc); a.mat.needsUpdate = true; a.loaded = false;
+      a.mat.map = tex(new THREE.VideoTexture(v)); a.mat.color.set(0xffffff); a.mat.needsUpdate = true; done();
+    } else loadInto(a.mat, `media/${a.id}.jpg`, done);
+  } else if (dist > FAR && a.loaded && a !== selected && a.t < .001) {
+    a.mat.map.dispose(); a.mat.map = null; a.mat.color.set(EMPTY); a.mat.needsUpdate = true; a.loaded = false;
     if (a.video) { a.video.pause(); a.video.removeAttribute('src'); a.video.load(); a.video = null; }
   }
 }
 
-// ================= État & interactions =================
-let s = S_MIN + 4, sT = 0, mx = 0, my = 0, mxT = 0, myT = 0, yaw = 0, yawT = 0, selected = null, hovered = null;
+// ================= Ouverture : l'image vient devant, ses voisines de groupe arrivent de hors champ =================
+const tanH = () => Math.tan(THREE.MathUtils.degToRad(camera.fov / 2));
+function region() {
+  const hh = tanH() * D, hw = hh * camera.aspect;
+  const X = px => (px / innerWidth * 2 - 1) * hw, Y = py => (1 - py / innerHeight * 2) * hh;
+  const top = document.querySelector('header').getBoundingClientRect().bottom + 12;
+  if (innerWidth > 700) {
+    const bottom = document.querySelector('footer').getBoundingClientRect().top - 8;
+    return { x0: X(28), x1: X(innerWidth - 28 - card.offsetWidth - 24), y0: Y(bottom), y1: Y(top), hw, hh };
+  }
+  return { x0: X(16), x1: X(innerWidth - 16), y0: Y(card.offsetTop - 12), y1: Y(top), hw, hh };
+}
+// grille qui maximise la surface des images dans la zone libre
+function layout(ratios, R) {
+  let best = null;
+  for (let cols = 1; cols <= ratios.length; cols++) {
+    const rows = Math.ceil(ratios.length / cols), cw = (R.x1 - R.x0) / cols, ch = (R.y1 - R.y0) / rows;
+    let area = 0;
+    const sz = ratios.map(r => { let w = cw * .92, h = w / r; if (h > ch * .92) { h = ch * .92; w = h * r; } area += w * h; return [w, h]; });
+    if (!best || area > best.area) best = { cols, cw, ch, sz, area };
+  }
+  return best.sz.map(([w, h], k) => {
+    const row = k / best.cols | 0, col = k % best.cols, inRow = Math.min(best.cols, ratios.length - row * best.cols);
+    const off = (best.cols - inRow) * best.cw / 2;
+    return { p: new THREE.Vector3(R.x0 + off + (col + .5) * best.cw, R.y1 - (row + .5) * best.ch, -D), w, h };
+  });
+}
+function place(a) {
+  const R = region(), cells = layout([a.w / a.h, ...a.extra.map(m => m.ratio)], R);
+  a.cell = cells[0];
+  a.extra.forEach((m, k) => {
+    m.cell = cells[k + 1];
+    const from = k % 2 ? 1 : -1;  // alternativement de gauche et de droite, hors champ
+    m.start.set(from * (R.hw + m.cell.w), (rnd() - .5) * R.hh * 1.4, -D);
+    m.rz = from * (.4 + rnd() * .5);
+    if (!m.mesh) {
+      const mat = new THREE.MeshBasicMaterial({ color: EMPTY, depthTest: false });
+      m.mesh = framed(mat, 1, 1); m.mesh.renderOrder = 10; m.mesh.userData.frame.material.depthTest = false; m.mesh.visible = false;
+      camera.add(m.mesh); loadInto(mat, `media/${m.id}.jpg`);
+    }
+  });
+}
+
+let selected = null, hovered = null, openedAt = 0;
+const clock = new THREE.Clock();
+const label = a => ({ panel: a.stage.title, project: a.info?.title, group: a.title, video: 'Showreel', photo: a.stage.title })[a.kind] || '';
+function row(k, v) { if (!v) return; const dt = document.createElement('dt'), dd = document.createElement('dd'); dt.textContent = k; dd.textContent = v; cardMeta.append(dt, dd); }
+function open(a) {
+  selected = a; sT = s; openedAt = clock.elapsedTime;
+  const st = a.stage, sn = STAGES.indexOf(st) + 1;
+  cardIdx.textContent = a.kind === 'panel' ? `Étape ${sn} / ${STAGES.length}` : `${st.title} · ${String(a.n).padStart(2, '0')} / ${a.of}`;
+  cardMeta.innerHTML = ''; cardLink.hidden = true; cardHint.textContent = '';
+  if (a.kind === 'panel') { cardTitle.textContent = st.title; cardText.textContent = st.text; row('Années', st.years); row('Poste', st.role); }
+  else if (a.kind === 'project') {
+    cardTitle.textContent = a.info.title; cardText.textContent = a.info.text;
+    row('Format', a.info.format); row('Année', a.info.year); row('Chaîne', 'Konbini');
+    cardLink.href = `https://youtu.be/${a.yt}`; cardLink.hidden = false;
+  } else if (a.kind === 'group') { cardTitle.textContent = a.title; cardText.textContent = a.text; row('Photos', String(a.photos.length)); }
+  else if (a.kind === 'video') { cardTitle.textContent = 'Showreel Konbini News'; cardText.textContent = ''; cardHint.textContent = 'Son activé · toucher pour fermer'; }
+  else { cardTitle.textContent = ''; cardText.textContent = ''; }
+  if (a.video) { a.video.muted = false; a.video.currentTime = 0; a.video.play().catch(() => {}); }
+  card.classList.add('on');
+  place(a);
+}
+function close() { if (selected?.video) selected.video.muted = true; selected = null; card.classList.remove('on'); }
+
+// ================= Interactions =================
+let s = S_MIN + 4, sT = 0, mx = 0, my = 0, mxT = 0, myT = 0, yaw = 0, yawT = 0;
 const clampS = v => Math.min(Math.max(v, 0), S_MAX_CAM);
 const nearest = v => arts.reduce((b, a) => Math.abs(a.s - v - 4) < Math.abs(b.s - v - 4) ? a : b);
 const ndc = new THREE.Vector2(-9, -9), ray = new THREE.Raycaster();
-const pick = () => { ray.setFromCamera(ndc, camera); const h = ray.intersectObjects(meshes, false)[0];
-  return h && h.distance < 14 ? arts[meshes.indexOf(h.object)] : null; };
-
-// Où se pose l'image ouverte : sur mobile, dans l'espace libre entre l'en-tête et la fiche
-const tanH = () => Math.tan(THREE.MathUtils.degToRad(camera.fov / 2));
-let view = { dist: 3, ox: 0, oy: 0 };
-function layoutView() {
-  const t = tanH(), asp = camera.aspect, a = selected;
-  const FW = (a ? a.w : MAXW) + .12, FH = (a ? a.h : MAXH) + .12;
-  if (innerWidth > 700) {
-    const wide = asp > 1.1, fx = wide ? .55 : .85;
-    const dist = Math.max(FW / (2 * t * asp * fx), FH / (2 * t * .6));
-    view = { dist, ox: wide ? -.22 * t * asp * dist : 0, oy: 0 }; return;
-  }
-  const top = document.querySelector('header').getBoundingClientRect().bottom + 12;
-  const bottom = card.offsetTop - 12;
-  const hPx = Math.max(120, bottom - top);
-  const dist = Math.max(FH * innerHeight / (hPx * 2 * t), FW * innerWidth / ((innerWidth - 32) * 2 * t * asp));
-  view = { dist, ox: 0, oy: (1 - (top + bottom) / innerHeight) * t * dist };
-}
-
-const label = a => a.kind === 'panel' ? a.stage.title : (a.cap.title || a.stage.title);
-function open(a) {
-  selected = a; sT = s;
-  cardIdx.textContent = a.kind === 'panel' ? `Étape ${STAGES.indexOf(a.stage) + 1} / ${STAGES.length}` : `${a.stage.title} · ${String(a.n).padStart(2, '0')} / ${a.of}`;
-  cardTitle.textContent = a.kind === 'panel' ? a.stage.title : (a.cap.title || '');
-  cardText.textContent = a.kind === 'panel' ? a.stage.text : (a.cap.text || '');
-  cardMeta.innerHTML = '';
-  const rows = a.kind === 'panel' ? [['Années', a.stage.years], ['Poste', a.stage.role]] : [['Année', a.cap.year], ['Lieu', a.cap.place]];
-  for (const [k, v] of rows) { if (!v) continue;
-    const dt = document.createElement('dt'), dd = document.createElement('dd'); dt.textContent = k; dd.textContent = v; cardMeta.append(dt, dd); }
-  cardHint.textContent = a.video ? 'Son activé · toucher pour fermer' : '';
-  if (a.video) { a.video.muted = false; a.video.currentTime = 0; a.video.play().catch(() => {}); }
-  card.classList.add('on'); layoutView();
-}
-function close() { if (selected?.video) selected.video.muted = true; selected = null; card.classList.remove('on'); }
+const pick = () => { ray.setFromCamera(ndc, camera); const h = ray.intersectObjects(covers, false)[0];
+  return h && h.distance < 14 ? arts[covers.indexOf(h.object)] : null; };
 const go = dir => { const n = arts[Math.min(Math.max(nearest(sT).i + dir, 0), COUNT - 1)]; sT = clampS(n.s - 5.5); };
+arts.forEach((a, i) => a.i = i);
 
 addEventListener('pointermove', e => {
   ndc.set(e.clientX / innerWidth * 2 - 1, -(e.clientY / innerHeight) * 2 + 1);
@@ -356,7 +409,6 @@ renderer.domElement.addEventListener('click', () => {
   const a = pick(); if (a) open(a);
 });
 addEventListener('wheel', e => { e.preventDefault(); if (!selected) sT = clampS(sT + e.deltaY * .012); }, { passive: false });
-// tactile : la première direction franche du glissement gagne — vertical avance, horizontal tourne la tête
 let touchX = null, touchY = null, axis = null, dragged = false;
 addEventListener('touchstart', e => { touchX = e.touches[0].clientX; touchY = e.touches[0].clientY; axis = null; dragged = false; }, { passive: true });
 addEventListener('touchmove', e => {
@@ -381,13 +433,12 @@ addEventListener('keydown', e => {
 });
 addEventListener('resize', () => {
   camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix();
-  renderer.setSize(innerWidth, innerHeight); layoutView();
+  renderer.setSize(innerWidth, innerHeight); if (selected) place(selected);
 });
-layoutView();
 
 // ================= Boucle =================
-const clock = new THREE.Clock();
-const tmpQ = new THREE.Quaternion(), fwd = new THREE.Vector3(), right = new THREE.Vector3(), upv = new THREE.Vector3(), front = new THREE.Vector3();
+const tmpQ = new THREE.Quaternion(), tmpV = new THREE.Vector3(), mid = new THREE.Vector3(), target = new THREE.Vector3(), normal = new THREE.Vector3();
+const smooth = t => t * t * (3 - 2 * t);
 let lastIdx = -1, lastStage = null;
 
 renderer.setAnimationLoop(() => {
@@ -399,36 +450,48 @@ renderer.setAnimationLoop(() => {
   camera.position.copy(f.c).addScaledVector(f.U, -.25 + Math.sin(time * .8) * .02);
   camera.lookAt(center(s + 5).setY(center(s + 5).y - .25));
   camera.rotateY(-mx * .35 + yaw); camera.rotateX(my * .2);
+  camera.updateMatrixWorld();
   gridMat.uniforms.uCam.value.copy(camera.position);
 
   hovered = selected ? null : pick();
   renderer.domElement.style.cursor = hovered || selected ? 'pointer' : '';
 
-  fwd.set(0, 0, -1).applyQuaternion(camera.quaternion);
-  right.set(1, 0, 0).applyQuaternion(camera.quaternion);
-  upv.set(0, 1, 0).applyQuaternion(camera.quaternion);
-  front.copy(camera.position).addScaledVector(fwd, view.dist).addScaledVector(right, view.ox).addScaledVector(upv, view.oy);
-
   for (const a of arts) {
-    const d = Math.abs(a.s - s);
+    const d = Math.abs(a.s - s), isOpen = a === selected;
     stream(a, d);
-    if (d > FAR && a !== selected && a.t < .001) { a.mesh.visible = false; continue; }
+    const busy = a.t > .001 || a.extra.some(m => m.t > .002);
+    if (d > FAR && !isOpen && !busy) { a.mesh.visible = false; continue; }
     a.mesh.visible = true;
-    a.t += ((a === selected ? 1 : 0) - a.t) * (1 - Math.exp(-dt * 5));
+    a.t += ((isOpen ? 1 : 0) - a.t) * (1 - Math.exp(-dt * 5));
     a.hover += ((a === hovered ? 1 : 0) - a.hover) * k;
-    if (a.t > .001) {
-      const e = a.t * a.t * (3 - 2 * a.t);
-      const normal = new THREE.Vector3(0, 0, 1).applyQuaternion(a.wallQuat);
-      const mid = a.wallPos.clone().addScaledVector(normal, 1.4);
-      a.mesh.position.copy(a.wallPos).multiplyScalar((1 - e) ** 2).addScaledVector(mid, 2 * e * (1 - e)).addScaledVector(front, e * e);
-      a.mesh.quaternion.slerpQuaternions(a.wallQuat, camera.quaternion, e)
-        .multiply(tmpQ.setFromAxisAngle(UP, Math.sin(e * Math.PI) * .6 * a.side));
-    } else { a.mesh.position.copy(a.wallPos); a.mesh.quaternion.copy(a.wallQuat); }
-    a.mesh.scale.setScalar(1 + a.hover * .05);
+    if (a.t > .001 && a.cell) {
+      const e = smooth(a.t);
+      normal.set(0, 0, 1).applyQuaternion(a.wallQuat);
+      mid.copy(a.wallPos).addScaledVector(normal, 1.4);
+      target.copy(a.cell.p); camera.localToWorld(target);
+      a.mesh.position.copy(a.wallPos).multiplyScalar((1 - e) ** 2).addScaledVector(mid, 2 * e * (1 - e)).addScaledVector(target, e * e);
+      a.mesh.quaternion.slerpQuaternions(a.wallQuat, camera.quaternion, e).multiply(tmpQ.setFromAxisAngle(UP, Math.sin(e * Math.PI) * .6 * a.side));
+      a.mesh.scale.set(a.w + (a.cell.w - a.w) * e, a.h + (a.cell.h - a.h) * e, 1);
+      a.mesh.renderOrder = e > .5 ? 9 : 0; a.mat.depthTest = e < .5;
+    } else {
+      a.mesh.position.copy(a.wallPos); a.mesh.quaternion.copy(a.wallQuat);
+      const sc = 1 + a.hover * .05; a.mesh.scale.set(a.w * sc, a.h * sc, 1); a.mesh.renderOrder = 0; a.mat.depthTest = true;
+    }
+    if (a.badge) a.badge.visible = a.t < .02;
+    for (const m of a.extra) {
+      if (!m.mesh) continue;
+      const goIn = isOpen && time - openedAt > m.delay;
+      m.t += ((goIn ? 1 : 0) - m.t) * (1 - Math.exp(-dt * (goIn ? 4.5 : 9)));
+      m.mesh.visible = m.t > .002;
+      if (!m.mesh.visible) continue;
+      const e = smooth(m.t);
+      m.mesh.position.lerpVectors(m.start, m.cell.p, e);
+      m.mesh.rotation.set(0, 0, m.rz * (1 - e));
+      m.mesh.scale.set(m.cell.w, m.cell.h, 1);
+    }
     const near = Math.max(0, 1 - Math.abs(a.s - s - 3) / 7);
-    a.pow += (near * 1.1 + a.hover * .6 + (a === selected ? 1.2 : 0) - a.pow) * k;
+    a.pow += (near * 1.1 + a.hover * .6 + (isOpen ? 1.2 : 0) - a.pow) * k;
   }
-  // les 8 images les plus proches éclairent la grille
   const lit = arts.filter(a => Math.abs(a.s - s) < 20).sort((p, q) => q.pow - p.pow).slice(0, NL);
   for (let j = 0; j < NL; j++) { const a = lit[j]; if (a) { lightPos[j].copy(a.light); lightPow[j] = a.pow; } else lightPow[j] = 0; }
 
