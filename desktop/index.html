@@ -142,7 +142,8 @@
   .viewer img { display:block; max-width:100%; max-height:calc(100vh - 180px); }
   .win[data-id="viewer"] .content { padding:6px; }
 
-  .content.mood { padding:4px; } .content.mood img { display:block; width:100%; height:auto; }
+  .content.mood { padding:4px; } .content.mood img, .content.mood video { display:block; width:100%; height:auto; }
+  .viewer video { display:block; max-width:100%; max-height:calc(100vh - 180px); }
 
   /* trash */
   .trash li { display:flex; align-items:center; gap:8px; padding:4px 2px; font:12px var(--pix); }
@@ -570,6 +571,8 @@ for (const [stage, list] of PHOTOS) {
     const b = document.createElement('button'); b.setAttribute('aria-label', `${stage}, photo ${k + 1}`);
     const im = new Image(); im.src = id.startsWith('mood') ? `mood/${id}.jpg` : `photos/${id}.jpg`; im.alt = ''; im.loading = 'lazy'; b.append(im);
     b.onclick = () => {
+      viewImg.parentNode.querySelector('video')?.remove(); viewImg.hidden = !!MOOD_VIDEO[id];
+      if (MOOD_VIDEO[id]) viewImg.insertAdjacentHTML('afterend', `<video src="mood/${MOOD_VIDEO[id]}" autoplay muted loop playsinline></video>`);
       viewImg.src = id.startsWith('mood') ? `mood/${id}.jpg` : `../corridor/media/${id}.jpg`; viewImg.alt = `${stage}, photo ${k + 1}`;
       viewInfo.innerHTML = `${esc(stage)} · ${k + 1} / ${list.length}` + (id.startsWith('mood') ? '' : ' · <a href="../corridor/" target="_blank" rel="noopener">voir dans le couloir ↗</a>');
       wins.viewer.querySelector('.title span').textContent = `${id}.jpg`;
@@ -608,6 +611,7 @@ const taskbar = document.querySelector('.taskbar'), mobile = () => innerWidth <=
 const TBH = () => taskbar.offsetHeight; // taller on touch screens (see CSS)
 const clamp = (v, a, b) => Math.min(Math.max(v, a), b);
 // fenêtres « mood » : de petites images ouvertes un peu au hasard
+const MOOD_VIDEO = { 'mood-06': 'vegeta.mp4' }; // images « mood » animées (GIF converti en vidéo, bien plus léger)
 const MOOD_SIZES = { 'mood-01': [1280, 865], 'mood-02': [596, 1280], 'mood-03': [828, 818], 'mood-04': [751, 1280], 'mood-05': [960, 1280], 'mood-06': [540, 540], 'mood-07': [632, 467] };
 const moodPick = C.moods.slice().sort(() => Math.random() - .5).slice(0, 2 + (Math.random() * 2 | 0));
 // emplacements autour de la fenêtre d'accueil (fractions largeur, hauteur), mélangés
@@ -618,7 +622,9 @@ for (const id of moodPick) {
   sec.dataset.pos = MOOD_SLOTS.pop().join(',');
   sec.style.setProperty('--w', `${170 + (Math.random() * 60 | 0)}px`);
   const [iw, ih] = MOOD_SIZES[id] || [1, 1]; // tailles connues → la fenêtre a sa hauteur avant le chargement
-  sec.innerHTML = `<div class="content mood"><img src="mood/${id}.jpg" width="${iw}" height="${ih}" alt=""></div>`;
+  sec.innerHTML = MOOD_VIDEO[id]
+    ? `<div class="content mood"><video src="mood/${MOOD_VIDEO[id]}" poster="mood/${id}.jpg" width="${iw}" height="${ih}" autoplay muted loop playsinline></video></div>`
+    : `<div class="content mood"><img src="mood/${id}.jpg" width="${iw}" height="${ih}" alt=""></div>`;
   document.querySelector('.startmenu').before(sec);
 }
 const wins = Object.fromEntries([...document.querySelectorAll('.win')].map(w => [w.dataset.id, w]));
