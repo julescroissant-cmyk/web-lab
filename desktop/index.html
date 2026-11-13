@@ -276,9 +276,9 @@ const C = {
   status: 'En poste chez Konbini · ouvert aux échanges',
   email: atob('bW9jLmxpYW1nQHRuYXNzaW9yY3NlbHVq').split('').reverse().join(''), // email encodé (reverse + base64) pour les robots qui aspirent les adresses ; le décoder ici pour le modifier
   callUrl: '', // lien de prise de rendez-vous (Calendly, cal.com…) ; vide = bouton masqué
-  wallpapers: ['mood/mood-08.jpg', 'mood/mood-01.jpg'], // un fond tiré au hasard à chaque visite ; [] = prairie peinte
+  wallpapers: ['mood/mood-08.jpg'], // ajouter ici le coucher de soleil sur Séoul quand il arrive // un fond tiré au hasard à chaque visite ; [] = prairie peinte
   // images « mood » posées en vrac sur le bureau (2 ou 3 au hasard, sur grand écran)
-  moods: ['mood-02', 'mood-03', 'mood-04', 'mood-05', 'mood-06', 'mood-07'],
+  moods: ['mood-01', 'mood-02', 'mood-03', 'mood-04', 'mood-05', 'mood-06', 'mood-07'],
   links: [['LinkedIn', 'https://www.linkedin.com/in/julescroissant/']],
   // year: null quand l'année n'est pas connue
   // yt : identifiant YouTube (la partie après watch?v= ou youtu.be/) → miniature + lecteur intégré
@@ -608,7 +608,7 @@ const taskbar = document.querySelector('.taskbar'), mobile = () => innerWidth <=
 const TBH = () => taskbar.offsetHeight; // taller on touch screens (see CSS)
 const clamp = (v, a, b) => Math.min(Math.max(v, a), b);
 // fenêtres « mood » : de petites images ouvertes un peu au hasard
-const MOOD_SIZES = { 'mood-02': [596, 1280], 'mood-03': [828, 818], 'mood-04': [751, 1280], 'mood-05': [960, 1280], 'mood-06': [540, 540], 'mood-07': [632, 467] };
+const MOOD_SIZES = { 'mood-01': [1280, 865], 'mood-02': [596, 1280], 'mood-03': [828, 818], 'mood-04': [751, 1280], 'mood-05': [960, 1280], 'mood-06': [540, 540], 'mood-07': [632, 467] };
 const moodPick = C.moods.slice().sort(() => Math.random() - .5).slice(0, 2 + (Math.random() * 2 | 0));
 // emplacements autour de la fenêtre d'accueil (fractions largeur, hauteur), mélangés
 const MOOD_SLOTS = [[.3, .97], [.7, .95], [.95, .3], [.62, .04], [.18, .3]].sort(() => Math.random() - .5);
