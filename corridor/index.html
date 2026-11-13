@@ -105,7 +105,7 @@ const PROJECTS = {
   YjtqOSdSFG0: { title: 'Booba x Julien Beats', format: 'Interview', year: '', text: '' },
   // Konbini News · présidentielle
   bwWgcEKt4E4: { title: 'Emmanuel Macron · urgence climatique', format: 'Interview présidentielle', year: '2022', text: '' },
-  Y6xmVImERoY: { title: 'Le programme des candidat·es · précarité des jeunes', format: 'Présidentielle 2022', year: '2022', text: '' },
+  vU0KSAxPjJk: { title: 'Le programme des candidat·es · hôpital public', format: 'Présidentielle 2022', year: '2022', text: '' },
   // Konbini News · reportages et documentaires
   WzbVKaBdHJI: { title: 'Accusé à tort', format: 'Konbini Documentaire', year: '', text: '' },
   xOWNDgb_kDo: { title: 'XXL', format: 'Reportage', year: '', text: '' },
@@ -136,32 +136,36 @@ const PROJECTS = {
 //   { v: 'news-06' }                          → un showreel vidéo
 //   { ph: 'bureau-01' }                       → une photo seule (expo bureau)
 const STAGES = [
+  { id: 'intro', intro: true, title: 'Jules Croissant', years: '', role: 'Head of Production · Konbini',
+    text: 'Six ans de production vidéo, du plateau au pilotage. Avancez dans le couloir : une étape par chapitre.',
+    items: [ { g: 'Moi', photos: ['news-13', 'news-01', 'news-02'] } ] },
   { id: 'etudes', title: 'Études', years: '2016 — 2021', role: 'Lyon · Séoul · Paris',
     text: 'Science politique à Lyon 2, échange à Chung-Ang University, master de production audiovisuelle à Paris 3.',
-    items: [ { g: 'Lyon, puis Séoul', photos: ['etudes-01', 'etudes-02', 'etudes-03'] }, { g: 'Le mémoire', photos: ['etudes-04'] } ] },
+    items: [ { g: 'Lyon, Séoul, le mémoire', photos: ['etudes-01', 'etudes-02', 'etudes-03', 'etudes-04'] } ] },
   { id: 'konbini', title: 'Arrivée chez Konbini', years: '2020 — 2021', role: 'Assistant de production',
     text: 'Stage, CDD puis alternance : tournages Konbini Pop, planning, assistanat post-production.',
     items: [ { p: 'mPATl2Pw9Lw' }, { g: 'Premiers jours', photos: ['konbini-03', 'konbini-02', 'konbini-04'] }, { p: 'AWF222iqqLA' }, { p: 'YjtqOSdSFG0' } ] },
   { id: 'news', title: 'Konbini News', years: '2021 — 2025', role: 'Chargé de production éditoriale',
     text: 'Reportages et tournages en France et à l’étranger, formats longs, présidentielle 2022.',
-    items: [ { p: 'bwWgcEKt4E4' }, { g: 'Présidentielle 2022', photos: ['news-05'] }, { p: 'Y6xmVImERoY' },
+    items: [ { p: 'bwWgcEKt4E4' }, { g: 'Présidentielle 2022', photos: ['news-05'] }, { p: 'vU0KSAxPjJk' },
              { p: 'WzbVKaBdHJI' }, { p: 'a-vN-7s14Kg' }, { g: 'Sur le terrain', photos: ['news-09', 'news-14'] }, { p: 'iw39FyYioUc' },
              { v: 'news-06' }, { p: 'qkyXoi0LyFw' }, { p: '8dPnqTP9ZMQ' }, { p: 'iUCg5P910BI' },
-             { g: 'La rédac', photos: ['news-13', 'news-01', 'news-02'] }, { p: '6hVDoIzw_54' }, { p: 'rXt_DtUoa3c' },
+             { p: '6hVDoIzw_54' }, { p: 'rXt_DtUoa3c' },
              { p: '7i5tEs8q1yc' }, { p: 'PDy3RpQTktw' }, { v: 'news-07' }, { p: 'IkO56jyz2-c' }, { p: 'LNldcBoiNbk' }, { p: 'xOWNDgb_kDo' } ] },
   { id: 'direction', title: 'Direction de la production éditoriale', years: '2025 — 2026', role: 'Directeur de production éditoriale',
     text: 'Budget, outils et process de production, équipes image et montage.',
-    items: [ { p: 'GVqOtVfTAd4' }, { g: 'Konbini Café', photos: ['direction-10', 'direction-02', 'direction-12', 'direction-03'] },
+    items: [ { g: 'Konbini Café', photos: ['direction-10', 'direction-02', 'direction-12', 'direction-03'] },
              { p: 'sGHH-UzRhxY' }, { p: 'UfmRgJmdplo' }, { g: 'Studios', photos: ['direction-13', 'direction-05', 'direction-01'] },
              { p: 'PxbymaIm_0k' }, { p: 'oQNhcCQ11QU' }, { p: 'A-tHMViRwKM' },
              { g: 'Coulisses', photos: ['direction-06', 'direction-07'] }, { p: '9X2Wn5pQ9kw' }, { p: 'VxhJTdN2q6k' } ] },
   { id: 'head', title: 'Head of Production', years: '2026 — aujourd’hui', role: 'Konbini',
     text: 'Co-direction du département Production, éditorial et brand content.',
-    items: [] },
+    items: [ { p: 'GVqOtVfTAd4' } ] },
   { id: 'bureau', title: 'Bureau en bordel', years: '', role: 'Exposition',
     text: 'Huit bureaux, aucun rangement.',
     items: ['bureau-01', 'bureau-02', 'bureau-03', 'bureau-04', 'bureau-05', 'bureau-06', 'bureau-07', 'bureau-08'].map(ph => ({ ph })) },
 ];
+const STEPS = STAGES.filter(st => !st.intro), stepOf = st => st.intro ? 'Intro' : `Étape ${STEPS.indexOf(st) + 1} / ${STEPS.length}`;
 const RATIO = {"etudes-01": 1.3333, "etudes-02": 0.75, "etudes-03": 0.75, "etudes-04": 1.4679, "konbini-01": 0.75, "konbini-02": 1.3333, "konbini-03": 0.75, "konbini-04": 0.75, "konbini-05": 0.75, "konbini-06": 1.3333, "konbini-07": 0.9867, "konbini-08": 0.6227, "konbini-09": 1.3333, "news-01": 0.75, "news-02": 0.75, "news-03": 1.3333, "news-04": 0.75, "news-05": 0.75, "news-06": 0.5625, "news-07": 0.5625, "news-08": 0.75, "news-09": 0.75, "news-10": 0.75, "news-11": 0.75, "news-12": 0.75, "news-13": 0.75, "news-14": 0.75, "direction-01": 0.75, "direction-02": 0.75, "direction-03": 0.75, "direction-04": 1.0, "direction-05": 1.0, "direction-06": 1.3333, "direction-07": 0.75, "direction-08": 1.3333, "direction-09": 0.75, "direction-10": 1.2537, "direction-11": 0.75, "direction-12": 1.3333, "direction-13": 0.75, "bureau-01": 0.75, "bureau-02": 0.75, "bureau-03": 1.3333, "bureau-04": 1.3333, "bureau-05": 1.3333, "bureau-06": 0.75, "bureau-07": 0.75, "bureau-08": 0.75};
 
 // ================= Couloir : un chemin qui ondule, s = distance le long =================
@@ -304,13 +308,13 @@ function ytInto(mat, id, done) {
 const arts = [];
 let stageNo = 0;
 for (const e of ENTRIES) {
-  if (e.kind === 'panel') stageNo++;
+  if (e.kind === 'panel' && !e.stage.intro) stageNo++;
   const f = frame(e.s), side = e.side;
   const z = f.R.clone().multiplyScalar(-side), y = f.U.clone(), x = new THREE.Vector3().crossVectors(y, z);
   const wallQuat = new THREE.Quaternion().setFromRotationMatrix(new THREE.Matrix4().makeBasis(x, y, z));
   const wallPos = f.c.clone().addScaledVector(f.R, side * (W / 2 - .04)).addScaledVector(f.U, e.y);
   const mat = new THREE.MeshBasicMaterial({ color: e.kind === 'panel' ? 0xffffff : TH.empty,
-    map: e.kind === 'panel' ? panelTexture(e.stage, String(stageNo).padStart(2, '0') + ' / ' + STAGES.length) : null });
+    map: e.kind === 'panel' ? panelTexture(e.stage, e.stage.intro ? 'INTRO' : String(stageNo).padStart(2, '0') + ' / ' + STEPS.length) : null });
   const mesh = framed(mat, e.w, e.h);
   if (e.kind === 'panel') mesh.userData.frame.visible = false;
   mesh.position.copy(wallPos); mesh.quaternion.copy(wallQuat); scene.add(mesh);
@@ -339,7 +343,7 @@ function applyTheme() {
   FRAMES.forEach(m => m.color.set(TH.frame)); GHOSTS.forEach(m => m.color.set(TH.ghost));
   let n = 0;
   for (const a of arts) {
-    if (a.kind === 'panel') { n++; a.mat.map.dispose(); a.mat.map = panelTexture(a.stage, String(n).padStart(2, '0') + ' / ' + STAGES.length); a.mat.needsUpdate = true; }
+    if (a.kind === 'panel') { if (!a.stage.intro) n++; a.mat.map.dispose(); a.mat.map = panelTexture(a.stage, a.stage.intro ? 'INTRO' : String(n).padStart(2, '0') + ' / ' + STEPS.length); a.mat.needsUpdate = true; }
     else if (!a.mat.map) a.mat.color.set(TH.empty);
     if (a.badge) { a.badge.material.map.dispose(); a.badge.material.map = badgeTexture(a.photos.length - 1); a.badge.material.needsUpdate = true; }
   }
@@ -435,9 +439,9 @@ function row(k, v) { if (!v) return; const dt = document.createElement('dt'), dd
 function open(a) {
   selected = a; sT = s; openedAt = clock.elapsedTime; a.focus = null;
   const st = a.stage, sn = STAGES.indexOf(st) + 1;
-  cardIdx.textContent = a.kind === 'panel' ? `Étape ${sn} / ${STAGES.length}` : `${st.title} · ${String(a.n).padStart(2, '0')} / ${a.of}`;
+  cardIdx.textContent = a.kind === 'panel' ? stepOf(st) : `${st.title} · ${String(a.n).padStart(2, '0')} / ${a.of}`;
   cardMeta.innerHTML = ''; cardLink.hidden = true; cardHint.textContent = '';
-  if (a.kind === 'panel') { cardTitle.textContent = st.title; cardText.textContent = st.text; row('Années', st.years); row('Poste', st.role); }
+  if (a.kind === 'panel') { cardTitle.textContent = st.title; cardText.textContent = st.text; row('Années', st.years); row(st.intro ? 'Aujourd’hui' : 'Poste', st.role); }
   else if (a.kind === 'project') {
     cardTitle.textContent = a.info.title; cardText.textContent = a.info.text;
     row('Format', a.info.format); row('Année', a.info.year); row('Chaîne', 'Konbini');
@@ -581,7 +585,7 @@ renderer.setAnimationLoop(() => {
   const cur = nearest(s);
   if (cur.i !== lastIdx) {
     lastIdx = cur.i;
-    idx.textContent = cur.kind === 'panel' ? `Étape ${STAGES.indexOf(cur.stage) + 1} / ${STAGES.length}` : `${String(cur.n).padStart(2, '0')} / ${cur.of}`;
+    idx.textContent = cur.kind === 'panel' ? stepOf(cur.stage) : `${String(cur.n).padStart(2, '0')} / ${cur.of}`;
     title.textContent = label(cur);
     if (cur.stage !== lastStage) { lastStage = cur.stage;
       meta.innerHTML = ''; const b = document.createElement('b'); b.textContent = cur.stage.title;
