@@ -8,7 +8,10 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
-  :root { --bg:#ffffff; --fg:#0f1a3d; --dim:#6b7391; --line:#1f54f033; --blue:#1f54f0; }
+  :root { --bg:#ffffff; --fg:#0f1a3d; --dim:#6b7391; --line:#1f54f033; --blue:#1f54f0; --card:#ffffffd9; }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg:#07090f; --fg:#e8ecff; --dim:#8a93b5; --line:#5fb4ff44; --blue:#5fb4ff; --card:#0d1220e0; }
+  }
   * { box-sizing:border-box; margin:0; }
   html,body { height:100%; background:var(--bg); color:var(--fg); overflow:hidden;
     font:400 11px/1.6 'JetBrains Mono',ui-monospace,monospace; letter-spacing:.04em; }
@@ -29,7 +32,7 @@
   .touch { display:none; }
   @media (pointer:coarse) { .touch { display:block; } .keys { display:none; } }
   .card { position:fixed; right:28px; top:50%; width:280px; padding:20px; border:1px solid var(--line);
-    background:#ffffffd9; backdrop-filter:blur(8px); pointer-events:none;
+    background:var(--card); backdrop-filter:blur(8px); pointer-events:none;
     opacity:0; transform:translate(16px,-50%); transition:opacity .4s, transform .4s; }
   .card.on { opacity:1; transform:translate(0,-50%); }
   .card h2 { font:400 34px/1 'Instrument Serif',serif; margin:6px 0 14px; letter-spacing:0; }
@@ -45,6 +48,9 @@
     border-bottom:1px solid var(--fg); pointer-events:auto; }
   .card .watch:hover { color:var(--blue); border-color:var(--blue); }
   .card .watch[hidden] { display:none; }
+  .player { position:fixed; z-index:5; display:none; background:#000; box-shadow:0 0 0 1px var(--blue); }
+  .player.on { display:block; }
+  .player iframe { display:block; width:100%; height:100%; border:0; }
   .loading { position:fixed; left:50%; top:50%; transform:translate(-50%,-50%); color:var(--dim); text-transform:uppercase; }
   @media (max-width:700px) {
     .hud { padding:16px; }
@@ -83,6 +89,7 @@
   <a class="watch" id="cardLink" target="_blank" rel="noopener">Regarder sur YouTube ↗</a>
   <div class="hint" id="cardHint"></div>
 </aside>
+<div class="player" id="player"></div>
 <div class="loading" id="loading">Chargement…</div>
 
 <script type="importmap">{ "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js" } }</script>
@@ -119,29 +126,29 @@ const STAGES = [
     items: [ { g: 'Lyon, puis Séoul', photos: ['etudes-01', 'etudes-02', 'etudes-03'] }, { g: 'Le mémoire', photos: ['etudes-04'] } ] },
   { id: 'konbini', title: 'Arrivée chez Konbini', years: '2020 — 2021', role: 'Assistant de production',
     text: 'Stage, CDD puis alternance : tournages Konbini Pop, planning, assistanat post-production.',
-    items: [ { g: 'Premiers jours', photos: ['konbini-03', 'konbini-01'] },
-             { g: 'Les plateaux', photos: ['konbini-06', 'konbini-04', 'konbini-05', 'konbini-09', 'konbini-02'] },
-             { g: 'Dans le détail', photos: ['konbini-07', 'konbini-08'] } ] },
+    items: [ { g: 'Premiers jours', photos: ['konbini-03'] },
+             { g: 'Les plateaux', photos: ['konbini-02', 'konbini-04'] } ] },
   { id: 'news', title: 'Konbini News', years: '2021 — 2025', role: 'Chargé de production éditoriale',
     text: 'Reportages et tournages en France et à l’étranger, formats longs, présidentielle 2022.',
     items: [ { p: 'bwWgcEKt4E4' }, { g: 'Présidentielle 2022', photos: ['news-05'] },
-             { p: 'a-vN-7s14Kg' }, { g: 'Sur le terrain', photos: ['news-08', 'news-09', 'news-04', 'news-10', 'news-14'] },
+             { p: 'a-vN-7s14Kg' }, { g: 'Sur le terrain', photos: ['news-09', 'news-14'] },
              { v: 'news-06' }, { p: 'WzbVKaBdHJI' }, { p: 'qkyXoi0LyFw' },
-             { g: 'La rédac', photos: ['news-11', 'news-12', 'news-02', 'news-01', 'news-13'] },
-             { p: 'LNldcBoiNbk' }, { g: 'Post-prod', photos: ['news-03'] }, { p: '8dPnqTP9ZMQ' }, { v: 'news-07' }, { p: 'xOWNDgb_kDo' } ] },
+             { g: 'La rédac', photos: ['news-13', 'news-01', 'news-02'] },
+             { p: 'LNldcBoiNbk' }, { p: '8dPnqTP9ZMQ' }, { v: 'news-07' }, { p: 'xOWNDgb_kDo' } ] },
   { id: 'direction', title: 'Direction de la production éditoriale', years: '2025 — 2026', role: 'Directeur de production éditoriale',
     text: 'Budget, outils et process de production, équipes image et montage.',
-    items: [ { p: 'GVqOtVfTAd4' }, { g: 'Café Konbini', photos: ['direction-10', 'direction-02', 'direction-12', 'direction-03'] },
-             { p: 'iurBzLRrQRQ' }, { g: 'Studios', photos: ['direction-13', 'direction-05', 'direction-09', 'direction-01'] },
-             { p: 'i5x2hm7Epdc' }, { g: 'Coulisses', photos: ['direction-06', 'direction-07', 'direction-08', 'direction-04', 'direction-11'] } ] },
+    items: [ { p: 'GVqOtVfTAd4' }, { g: 'Konbini Café', photos: ['direction-10', 'direction-02', 'direction-12', 'direction-03'] },
+             { p: 'iurBzLRrQRQ' }, { p: 'PxbymaIm_0k' }, { g: 'Studios', photos: ['direction-13', 'direction-05', 'direction-01'] },
+             { p: 'oQNhcCQ11QU' }, { p: 'i5x2hm7Epdc' }, { p: 'A-tHMViRwKM' },
+             { g: 'Coulisses', photos: ['direction-06', 'direction-07'] }, { p: '9X2Wn5pQ9kw' } ] },
   { id: 'head', title: 'Head of Production', years: '2026 — aujourd’hui', role: 'Konbini',
     text: 'Co-direction du département Production, éditorial et brand content.',
-    items: [ { p: 'PxbymaIm_0k' }, { p: 'oQNhcCQ11QU' }, { p: 'A-tHMViRwKM' }, { p: '9X2Wn5pQ9kw' }, { p: 'UfmRgJmdplo' } ] },
+    items: [ { p: 'UfmRgJmdplo' } ] },
   { id: 'bureau', title: 'Bureau en bordel', years: '', role: 'Exposition',
     text: 'Huit bureaux, aucun rangement.',
     items: ['bureau-01', 'bureau-02', 'bureau-03', 'bureau-04', 'bureau-05', 'bureau-06', 'bureau-07', 'bureau-08'].map(ph => ({ ph })) },
 ];
-const RATIO = {"etudes-01": 1.3333, "etudes-02": 0.75, "etudes-03": 0.75, "etudes-04": 1.4679, "konbini-01": 0.75, "konbini-02": 1.3333, "konbini-03": 0.75, "konbini-04": 0.75, "konbini-05": 0.75, "konbini-06": 1.3333, "konbini-07": 0.9867, "konbini-08": 0.6227, "konbini-09": 1.3333, "news-01": 0.75, "news-02": 0.75, "news-03": 1.3333, "news-04": 0.75, "news-05": 0.75, "news-06": 0.5625, "news-07": 0.5625, "news-08": 0.75, "news-09": 0.75, "news-10": 0.75, "news-11": 0.75, "news-12": 0.75, "news-13": 0.75, "news-14": 0.75, "direction-01": 0.75, "direction-02": 0.75, "direction-03": 0.75, "direction-04": 1.0, "direction-05": 1.0, "direction-06": 1.3333, "direction-07": 0.75, "direction-08": 1.3333, "direction-09": 0.75, "direction-10": 1.3333, "direction-11": 0.75, "direction-12": 1.3333, "direction-13": 0.75, "bureau-01": 0.75, "bureau-02": 0.75, "bureau-03": 1.3333, "bureau-04": 1.3333, "bureau-05": 1.3333, "bureau-06": 0.75, "bureau-07": 0.75, "bureau-08": 0.75};
+const RATIO = {"etudes-01": 1.3333, "etudes-02": 0.75, "etudes-03": 0.75, "etudes-04": 1.4679, "konbini-01": 0.75, "konbini-02": 1.3333, "konbini-03": 0.75, "konbini-04": 0.75, "konbini-05": 0.75, "konbini-06": 1.3333, "konbini-07": 0.9867, "konbini-08": 0.6227, "konbini-09": 1.3333, "news-01": 0.75, "news-02": 0.75, "news-03": 1.3333, "news-04": 0.75, "news-05": 0.75, "news-06": 0.5625, "news-07": 0.5625, "news-08": 0.75, "news-09": 0.75, "news-10": 0.75, "news-11": 0.75, "news-12": 0.75, "news-13": 0.75, "news-14": 0.75, "direction-01": 0.75, "direction-02": 0.75, "direction-03": 0.75, "direction-04": 1.0, "direction-05": 1.0, "direction-06": 1.3333, "direction-07": 0.75, "direction-08": 1.3333, "direction-09": 0.75, "direction-10": 1.2537, "direction-11": 0.75, "direction-12": 1.3333, "direction-13": 0.75, "bureau-01": 0.75, "bureau-02": 0.75, "bureau-03": 1.3333, "bureau-04": 1.3333, "bureau-05": 1.3333, "bureau-06": 0.75, "bureau-07": 0.75, "bureau-08": 0.75};
 
 // ================= Couloir : un chemin qui ondule, s = distance le long =================
 const W = 6, H = 4, START = 6, D = 3, UP = new THREE.Vector3(0, 1, 0);
@@ -160,24 +167,24 @@ const ENTRIES = [];
 { let s = START, prevSide = 1, prevW = 0;
   const hang = (e, w, h, gap, yJit) => {
     const side = e.kind === 'panel' ? -prevSide : (rnd() < .68 ? -prevSide : prevSide);
-    if (side === prevSide) gap = Math.max(gap, prevW / 2 + w / 2 + .6);
+    if (side === prevSide) gap = Math.max(gap, prevW / 2 + w / 2 + .35);
     s += gap;
     let y = (rnd() - .5) * yJit; y = Math.min(Math.max(y, -1.75 + h / 2), 1.75 - h / 2);
     ENTRIES.push({ ...e, s, side, w, h, y }); prevSide = side; prevW = w;
   };
   STAGES.forEach((st, si) => {
-    if (si) s += 5;
-    hang({ kind: 'panel', stage: st }, 1.9, 2.4, si ? 3 : 0, .1);
+    if (si) s += 2.5;
+    hang({ kind: 'panel', stage: st }, 1.9, 2.4, si ? 2.5 : 0, .1);
     const expo = st.id === 'bureau';
     st.items.forEach((it, k) => {
-      const first = k === 0 ? 3 : 0;
-      if (it.p) { const w = 2.7 + rnd() * .5; hang({ kind: 'project', stage: st, yt: it.p, info: PROJECTS[it.p] }, w, w * 9 / 16, first + 3.2 + rnd() * 3.6, .5); }
-      else if (it.v) { const h = 1.9 + rnd() * .3; hang({ kind: 'video', stage: st, id: it.v }, h * 9 / 16, h, first + 2.4 + rnd() * 3, .3); }
+      const first = k === 0 ? 1.4 : 0;
+      if (it.p) { const w = 2.7 + rnd() * .5; hang({ kind: 'project', stage: st, yt: it.p, info: PROJECTS[it.p] }, w, w * 9 / 16, first + 1.6 + rnd() * 2.6, .5); }
+      else if (it.v) { const h = 1.9 + rnd() * .3; hang({ kind: 'video', stage: st, id: it.v }, h * 9 / 16, h, first + 1.4 + rnd() * 2.2, .3); }
       else {
         const id = it.ph || it.photos[0], r = RATIO[id], m = expo ? .55 + rnd() * .55 : .8 + rnd() * .3;
         let w = 2.1 * m, h = w / r; if (h > 1.7 * m) { h = 1.7 * m; w = h * r; }
         const e = it.ph ? { kind: 'photo', stage: st, id } : { kind: 'group', stage: st, id, title: it.g, text: it.text || '', photos: it.photos };
-        hang(e, w, h, first + (expo ? .9 + rnd() * 1.2 : 2 + rnd() * 3.8), expo ? 1.6 : .7);
+        hang(e, w, h, first + (expo ? .8 + rnd() * 1 : 1.2 + rnd() * 2.4), expo ? 1.6 : .7);
       }
     });
   });
@@ -194,8 +201,17 @@ renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
 renderer.setSize(innerWidth, innerHeight);
 document.body.prepend(renderer.domElement);
 const scene = new THREE.Scene();
-scene.background = new THREE.Color(0xffffff);
-scene.fog = new THREE.FogExp2(0xffffff, .05);
+// jour / nuit : suit le thème du système, y compris quand il change pendant la visite
+const darkMQ = matchMedia('(prefers-color-scheme: dark)');
+const THEMES = {
+  day:   { bg: 0xffffff, line: [.12, .33, .94], frame: 0x1f54f0, empty: 0xe9eefc, ghost: 0xf4f6fe, badge: '#1f54f0',
+           panel: { bg: '#ffffff', border: '#1f54f0', dim: '#6b7391', text: '#0f1a3d', role: '#1f54f0' } },
+  night: { bg: 0x07090f, line: [.37, .78, 1], frame: 0x5fb4ff, empty: 0x151a2a, ghost: 0x1a2033, badge: '#2a6cff',
+           panel: { bg: '#0b0f1c', border: '#5fb4ff', dim: '#8a93b5', text: '#e8ecff', role: '#5fb4ff' } },
+};
+let TH = darkMQ.matches ? THEMES.night : THEMES.day;
+scene.background = new THREE.Color(TH.bg);
+scene.fog = new THREE.FogExp2(TH.bg, .05);
 const camera = new THREE.PerspectiveCamera(60, innerWidth / innerHeight, .05, 200);
 scene.add(camera); // les images ouvertes vivent devant la caméra
 
@@ -213,16 +229,17 @@ const gridGeo = new THREE.BufferGeometry();
 gridGeo.setAttribute('position', new THREE.Float32BufferAttribute(pts, 3));
 const NL = 8, lightPos = Array.from({ length: NL }, () => new THREE.Vector3(0, -999, 0)), lightPow = new Array(NL).fill(0);
 const gridMat = new THREE.ShaderMaterial({
-  uniforms: { uL: { value: lightPos }, uP: { value: lightPow }, uCam: { value: new THREE.Vector3() } },
+  uniforms: { uL: { value: lightPos }, uP: { value: lightPow }, uCam: { value: new THREE.Vector3() },
+    uBg: { value: new THREE.Color(TH.bg) }, uLine: { value: new THREE.Vector3(...TH.line) } },
   vertexShader: `varying vec3 vW;
     void main(){ vec4 w = modelMatrix * vec4(position,1.); vW = w.xyz; gl_Position = projectionMatrix * viewMatrix * w; }`,
   fragmentShader: `#define N ${NL}
-    uniform vec3 uL[N]; uniform float uP[N]; uniform vec3 uCam; varying vec3 vW;
+    uniform vec3 uL[N]; uniform float uP[N]; uniform vec3 uCam; uniform vec3 uBg; uniform vec3 uLine; varying vec3 vW;
     void main(){
       float glow = 0.;
       for(int i=0;i<N;i++){ vec3 d = vW - uL[i]; glow += uP[i] * exp(-dot(d,d) * .09); }
       float k = (.38 + .62 * clamp(glow, 0., 1.)) * exp(-length(vW - uCam) * .05);
-      gl_FragColor = vec4(mix(vec3(1.), vec3(.12,.33,.94), k), 1.);
+      gl_FragColor = vec4(mix(uBg, uLine, k), 1.);
     }`,
 });
 scene.add(new THREE.LineSegments(gridGeo, gridMat));
@@ -233,30 +250,31 @@ const tex = t => { t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = aniso; re
 function canvasTex(w, h, draw) { const c = document.createElement('canvas'); c.width = w; c.height = h; draw(c.getContext('2d')); return tex(new THREE.CanvasTexture(c)); }
 function panelTexture(st, idx) {
   return canvasTex(800, 1000, g => {
-    g.fillStyle = '#ffffff'; g.fillRect(0, 0, 800, 1000);
-    g.strokeStyle = '#1f54f0'; g.lineWidth = 6; g.strokeRect(24, 24, 752, 952);
-    g.fillStyle = '#6b7391'; g.font = '500 30px "JetBrains Mono", monospace';
+    const c = TH.panel;
+    g.fillStyle = c.bg; g.fillRect(0, 0, 800, 1000);
+    g.strokeStyle = c.border; g.lineWidth = 6; g.strokeRect(24, 24, 752, 952);
+    g.fillStyle = c.dim; g.font = '500 30px "JetBrains Mono", monospace';
     g.fillText(idx, 72, 120); g.fillText((st.years || '').toUpperCase(), 72, 900);
-    g.fillStyle = '#0f1a3d'; g.font = '400 112px "Instrument Serif", serif';
+    g.fillStyle = c.text; g.font = '400 112px "Instrument Serif", serif';
     let line = '', y = 300;
     for (const w of st.title.split(' ')) { const t = line ? line + ' ' + w : w;
       if (g.measureText(t).width > 650 && line) { g.fillText(line, 72, y); line = w; y += 108; } else line = t; }
     g.fillText(line, 72, y);
-    g.fillStyle = '#1f54f0'; g.font = 'italic 400 54px "Instrument Serif", serif';
+    g.fillStyle = c.role; g.font = 'italic 400 54px "Instrument Serif", serif';
     if (st.role) g.fillText(st.role, 72, y + 96);
   });
 }
 const badgeTexture = n => canvasTex(160, 80, g => {
-  g.fillStyle = '#1f54f0'; g.fillRect(0, 0, 160, 80);
+  g.fillStyle = TH.badge; g.fillRect(0, 0, 160, 80);
   g.fillStyle = '#fff'; g.font = '500 44px "JetBrains Mono", monospace'; g.textAlign = 'center'; g.fillText(`+${n}`, 80, 56);
 });
 
 // ================= Accrochage =================
 const UNIT = new THREE.PlaneGeometry(1, 1), EDGE = new THREE.EdgesGeometry(new THREE.PlaneGeometry(1, 1));
-const EMPTY = 0xe9eefc;
+const FRAMES = [], GHOSTS = [], EMPTIES = [];
 function framed(mat, w, h) {
   const mesh = new THREE.Mesh(UNIT, mat); mesh.scale.set(w, h, 1);
-  const f = new THREE.LineSegments(EDGE, new THREE.LineBasicMaterial({ color: 0x1f54f0 }));
+  const f = new THREE.LineSegments(EDGE, new THREE.LineBasicMaterial({ color: TH.frame })); FRAMES.push(f.material);
   f.scale.set(1 + .12 / w, 1 + .12 / h, 1); mesh.add(f); mesh.userData.frame = f;
   return mesh;
 }
@@ -277,7 +295,7 @@ for (const e of ENTRIES) {
   const z = f.R.clone().multiplyScalar(-side), y = f.U.clone(), x = new THREE.Vector3().crossVectors(y, z);
   const wallQuat = new THREE.Quaternion().setFromRotationMatrix(new THREE.Matrix4().makeBasis(x, y, z));
   const wallPos = f.c.clone().addScaledVector(f.R, side * (W / 2 - .04)).addScaledVector(f.U, e.y);
-  const mat = new THREE.MeshBasicMaterial({ color: e.kind === 'panel' ? 0xffffff : EMPTY,
+  const mat = new THREE.MeshBasicMaterial({ color: e.kind === 'panel' ? 0xffffff : TH.empty,
     map: e.kind === 'panel' ? panelTexture(e.stage, String(stageNo).padStart(2, '0') + ' / ' + STAGES.length) : null });
   const mesh = framed(mat, e.w, e.h);
   if (e.kind === 'panel') mesh.userData.frame.visible = false;
@@ -287,7 +305,7 @@ for (const e of ENTRIES) {
   if (e.kind === 'group' && e.photos.length > 1) {
     // pile : un ou deux cadres décalés derrière + pastille « +N »
     for (let j = 1; j <= Math.min(2, e.photos.length - 1); j++) {
-      const ghost = framed(new THREE.MeshBasicMaterial({ color: 0xf4f6fe }), e.w, e.h);
+      const ghost = framed(new THREE.MeshBasicMaterial({ color: TH.ghost }), e.w, e.h); GHOSTS.push(ghost.material);
       ghost.position.copy(wallPos).addScaledVector(x, .12 * j).addScaledVector(y, -.1 * j).addScaledVector(z, -.004 * j);
       ghost.quaternion.copy(wallQuat).multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 0, 1), .035 * j * side));
       scene.add(ghost);
@@ -300,6 +318,19 @@ for (const e of ENTRIES) {
   arts.push(a);
 }
 const covers = arts.map(a => a.mesh);
+function applyTheme() {
+  TH = darkMQ.matches ? THEMES.night : THEMES.day;
+  scene.background.set(TH.bg); scene.fog.color.set(TH.bg);
+  gridMat.uniforms.uBg.value.set(TH.bg); gridMat.uniforms.uLine.value.set(...TH.line);
+  FRAMES.forEach(m => m.color.set(TH.frame)); GHOSTS.forEach(m => m.color.set(TH.ghost));
+  let n = 0;
+  for (const a of arts) {
+    if (a.kind === 'panel') { n++; a.mat.map.dispose(); a.mat.map = panelTexture(a.stage, String(n).padStart(2, '0') + ' / ' + STAGES.length); a.mat.needsUpdate = true; }
+    else if (!a.mat.map) a.mat.color.set(TH.empty);
+    if (a.badge) { a.badge.material.map.dispose(); a.badge.material.map = badgeTexture(a.photos.length - 1); a.badge.material.needsUpdate = true; }
+  }
+}
+darkMQ.addEventListener('change', applyTheme);
 loading.remove();
 
 // Chargement paresseux des images du mur (important sur téléphone)
@@ -317,7 +348,7 @@ function stream(a, dist) {
       a.mat.map = tex(new THREE.VideoTexture(v)); a.mat.color.set(0xffffff); a.mat.needsUpdate = true; done();
     } else loadInto(a.mat, `media/${a.id}.jpg`, done);
   } else if (dist > FAR && a.loaded && a !== selected && a.t < .001) {
-    a.mat.map.dispose(); a.mat.map = null; a.mat.color.set(EMPTY); a.mat.needsUpdate = true; a.loaded = false;
+    a.mat.map.dispose(); a.mat.map = null; a.mat.color.set(TH.empty); a.mat.needsUpdate = true; a.loaded = false;
     if (a.video) { a.video.pause(); a.video.removeAttribute('src'); a.video.load(); a.video = null; }
   }
 }
@@ -349,16 +380,34 @@ function layout(ratios, R) {
     return { p: new THREE.Vector3(R.x0 + off + (col + .5) * best.cw, R.y1 - (row + .5) * best.ch, -D), w, h };
   });
 }
-function place(a) {
-  const R = region(), cells = layout([a.w / a.h, ...a.extra.map(m => m.ratio)], R);
-  a.cell = cells[0];
+// mode « focus » : une photo du groupe en grand, les autres en bandeau dessous
+function focusLayout(ratios, R, f) {
+  const H = R.y1 - R.y0, split = R.y0 + H * .24;
+  const big = layout([ratios[f]], { ...R, y0: split })[0];
+  const rest = ratios.map((r, k) => k).filter(k => k !== f);
+  const strip = layout(rest.map(k => ratios[k]), { ...R, y1: split });
+  const out = []; out[f] = big; rest.forEach((k, j) => out[k] = strip[j]);
+  // bandeau : toujours sur une ligne
+  if (rest.length) {
+    const cw = (R.x1 - R.x0) / rest.length;
+    rest.forEach((k, j) => { const r = ratios[k]; let h = (split - R.y0) * .86, w = h * r; if (w > cw * .9) { w = cw * .9; h = w / r; }
+      out[k] = { p: new THREE.Vector3(R.x0 + (j + .5) * cw, R.y0 + (split - R.y0) / 2, -D), w, h }; });
+  }
+  return out;
+}
+const chase = (cur, cell) => { if (!cur.p) { cur.p = cell.p.clone(); cur.w = cell.w; cur.h = cell.h; } return cur; };
+function place(a, reset = true) {
+  const R = region(), ratios = [a.w / a.h, ...a.extra.map(m => m.ratio)];
+  const cells = a.focus != null ? focusLayout(ratios, R, a.focus) : layout(ratios, R);
+  a.cell = cells[0]; if (reset) a.cur = { p: null }; chase(a.cur, a.cell);
   a.extra.forEach((m, k) => {
-    m.cell = cells[k + 1];
+    m.cell = cells[k + 1]; if (reset) m.cur = { p: null }; chase(m.cur, m.cell);
+    if (!reset) return;
     const from = k % 2 ? 1 : -1;  // alternativement de gauche et de droite, hors champ
     m.start.set(from * (R.hw + m.cell.w), (rnd() - .5) * R.hh * 1.4, -D);
     m.rz = from * (.4 + rnd() * .5);
     if (!m.mesh) {
-      const mat = new THREE.MeshBasicMaterial({ color: EMPTY, depthTest: false });
+      const mat = new THREE.MeshBasicMaterial({ color: TH.empty, depthTest: false });
       m.mesh = framed(mat, 1, 1); m.mesh.renderOrder = 10; m.mesh.userData.frame.material.depthTest = false; m.mesh.visible = false;
       camera.add(m.mesh); loadInto(mat, `media/${m.id}.jpg`);
     }
@@ -370,7 +419,7 @@ const clock = new THREE.Clock();
 const label = a => ({ panel: a.stage.title, project: a.info?.title, group: a.title, video: 'Showreel', photo: a.stage.title })[a.kind] || '';
 function row(k, v) { if (!v) return; const dt = document.createElement('dt'), dd = document.createElement('dd'); dt.textContent = k; dd.textContent = v; cardMeta.append(dt, dd); }
 function open(a) {
-  selected = a; sT = s; openedAt = clock.elapsedTime;
+  selected = a; sT = s; openedAt = clock.elapsedTime; a.focus = null;
   const st = a.stage, sn = STAGES.indexOf(st) + 1;
   cardIdx.textContent = a.kind === 'panel' ? `Étape ${sn} / ${STAGES.length}` : `${st.title} · ${String(a.n).padStart(2, '0')} / ${a.of}`;
   cardMeta.innerHTML = ''; cardLink.hidden = true; cardHint.textContent = '';
@@ -379,14 +428,30 @@ function open(a) {
     cardTitle.textContent = a.info.title; cardText.textContent = a.info.text;
     row('Format', a.info.format); row('Année', a.info.year); row('Chaîne', 'Konbini');
     cardLink.href = `https://youtu.be/${a.yt}`; cardLink.hidden = false;
-  } else if (a.kind === 'group') { cardTitle.textContent = a.title; cardText.textContent = a.text; row('Photos', String(a.photos.length)); }
+  } else if (a.kind === 'group') { cardTitle.textContent = a.title; cardText.textContent = a.text; row('Photos', String(a.photos.length));
+    if (a.photos.length > 1) cardHint.textContent = 'Clic sur une photo pour l’agrandir'; }
   else if (a.kind === 'video') { cardTitle.textContent = 'Showreel Konbini News'; cardText.textContent = ''; cardHint.textContent = 'Son activé · toucher pour fermer'; }
   else { cardTitle.textContent = ''; cardText.textContent = ''; }
   if (a.video) { a.video.muted = false; a.video.currentTime = 0; a.video.play().catch(() => {}); }
   card.classList.add('on');
   place(a);
 }
-function close() { if (selected?.video) selected.video.muted = true; selected = null; card.classList.remove('on'); }
+function close() { if (selected?.video) selected.video.muted = true; selected = null; card.classList.remove('on'); hidePlayer(); }
+// lecteur YouTube : remplace la miniature une fois qu'elle est arrivée devant
+let playerFor = null;
+function hidePlayer() { if (!playerFor) return; playerFor = null; player.classList.remove('on'); player.innerHTML = ''; }
+function syncPlayer() {
+  const a = selected;
+  if (!a || a.kind !== 'project' || a.t < .97) { if (playerFor && playerFor !== a) hidePlayer(); return; }
+  const hh = tanH() * D, hw = hh * camera.aspect, c = a.cur;
+  const W_ = c.w / (2 * hw) * innerWidth, H_ = c.h / (2 * hh) * innerHeight;
+  const x = (c.p.x / hw * .5 + .5) * innerWidth - W_ / 2, y = (.5 - c.p.y / hh * .5) * innerHeight - H_ / 2;
+  Object.assign(player.style, { left: x + 'px', top: y + 'px', width: W_ + 'px', height: H_ + 'px' });
+  if (playerFor !== a) {
+    playerFor = a; player.classList.add('on');
+    player.innerHTML = `<iframe src="https://www.youtube-nocookie.com/embed/${a.yt}?autoplay=1&rel=0&playsinline=1" title="${a.info.title.replace(/"/g, '&quot;')}" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowfullscreen></iframe>`;
+  }
+}
 
 // ================= Interactions =================
 let s = S_MIN + 4, sT = 0, mx = 0, my = 0, mxT = 0, myT = 0, yaw = 0, yawT = 0;
@@ -395,7 +460,7 @@ const nearest = v => arts.reduce((b, a) => Math.abs(a.s - v - 4) < Math.abs(b.s 
 const ndc = new THREE.Vector2(-9, -9), ray = new THREE.Raycaster();
 const pick = () => { ray.setFromCamera(ndc, camera); const h = ray.intersectObjects(covers, false)[0];
   return h && h.distance < 14 ? arts[covers.indexOf(h.object)] : null; };
-const go = dir => { const n = arts[Math.min(Math.max(nearest(sT).i + dir, 0), COUNT - 1)]; sT = clampS(n.s - 5.5); };
+const go = dir => { const n = arts[Math.min(Math.max(nearest(sT).i + dir, 0), COUNT - 1)]; sT = clampS(n.s - 4); }; // -4 : même repère que nearest()
 arts.forEach((a, i) => a.i = i);
 
 addEventListener('pointermove', e => {
@@ -405,7 +470,15 @@ addEventListener('pointermove', e => {
 addEventListener('pointerdown', e => ndc.set(e.clientX / innerWidth * 2 - 1, -(e.clientY / innerHeight) * 2 + 1));
 renderer.domElement.addEventListener('click', () => {
   if (dragged) return;
-  if (selected) return close();
+  if (selected) {
+    if (selected.extra.length && selected.t > .9) { // clic sur une photo du groupe ouvert → l'agrandir (re-clic : retour à la grille)
+      ray.setFromCamera(ndc, camera);
+      const list = [selected.mesh, ...selected.extra.map(m => m.mesh)];
+      const h = ray.intersectObjects(list, false)[0];
+      if (h) { const k = list.indexOf(h.object); selected.focus = selected.focus === k ? null : k; place(selected, false); return; }
+    }
+    return close();
+  }
   const a = pick(); if (a) open(a);
 });
 addEventListener('wheel', e => { e.preventDefault(); if (!selected) sT = clampS(sT + e.deltaY * .012); }, { passive: false });
@@ -433,7 +506,7 @@ addEventListener('keydown', e => {
 });
 addEventListener('resize', () => {
   camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix();
-  renderer.setSize(innerWidth, innerHeight); if (selected) place(selected);
+  renderer.setSize(innerWidth, innerHeight); if (selected) place(selected, false);
 });
 
 // ================= Boucle =================
@@ -464,18 +537,20 @@ renderer.setAnimationLoop(() => {
     a.mesh.visible = true;
     a.t += ((isOpen ? 1 : 0) - a.t) * (1 - Math.exp(-dt * 5));
     a.hover += ((a === hovered ? 1 : 0) - a.hover) * k;
+    const kc = 1 - Math.exp(-dt * 9);
+    if (a.cur?.p) { a.cur.p.lerp(a.cell.p, kc); a.cur.w += (a.cell.w - a.cur.w) * kc; a.cur.h += (a.cell.h - a.cur.h) * kc; }
     if (a.t > .001 && a.cell) {
       const e = smooth(a.t);
       normal.set(0, 0, 1).applyQuaternion(a.wallQuat);
       mid.copy(a.wallPos).addScaledVector(normal, 1.4);
-      target.copy(a.cell.p); camera.localToWorld(target);
+      target.copy(a.cur.p); camera.localToWorld(target);
       a.mesh.position.copy(a.wallPos).multiplyScalar((1 - e) ** 2).addScaledVector(mid, 2 * e * (1 - e)).addScaledVector(target, e * e);
       a.mesh.quaternion.slerpQuaternions(a.wallQuat, camera.quaternion, e).multiply(tmpQ.setFromAxisAngle(UP, Math.sin(e * Math.PI) * .6 * a.side));
-      a.mesh.scale.set(a.w + (a.cell.w - a.w) * e, a.h + (a.cell.h - a.h) * e, 1);
+      a.mesh.scale.set(a.w + (a.cur.w - a.w) * e, a.h + (a.cur.h - a.h) * e, 1); a.mesh.userData.frame.scale.set(1 + .08 / a.mesh.scale.x, 1 + .08 / a.mesh.scale.y, 1);
       a.mesh.renderOrder = e > .5 ? 9 : 0; a.mat.depthTest = e < .5;
     } else {
       a.mesh.position.copy(a.wallPos); a.mesh.quaternion.copy(a.wallQuat);
-      const sc = 1 + a.hover * .05; a.mesh.scale.set(a.w * sc, a.h * sc, 1); a.mesh.renderOrder = 0; a.mat.depthTest = true;
+      const sc = 1 + a.hover * .05; a.mesh.scale.set(a.w * sc, a.h * sc, 1); a.mesh.userData.frame.scale.set(1 + .12 / a.mesh.scale.x, 1 + .12 / a.mesh.scale.y, 1); a.mesh.renderOrder = 0; a.mat.depthTest = true;
     }
     if (a.badge) a.badge.visible = a.t < .02;
     for (const m of a.extra) {
@@ -484,10 +559,11 @@ renderer.setAnimationLoop(() => {
       m.t += ((goIn ? 1 : 0) - m.t) * (1 - Math.exp(-dt * (goIn ? 4.5 : 9)));
       m.mesh.visible = m.t > .002;
       if (!m.mesh.visible) continue;
+      m.cur.p.lerp(m.cell.p, kc); m.cur.w += (m.cell.w - m.cur.w) * kc; m.cur.h += (m.cell.h - m.cur.h) * kc;
       const e = smooth(m.t);
-      m.mesh.position.lerpVectors(m.start, m.cell.p, e);
+      m.mesh.position.lerpVectors(m.start, m.cur.p, e);
       m.mesh.rotation.set(0, 0, m.rz * (1 - e));
-      m.mesh.scale.set(m.cell.w, m.cell.h, 1);
+      m.mesh.scale.set(m.cur.w, m.cur.h, 1); m.mesh.userData.frame.scale.set(1 + .08 / m.cur.w, 1 + .08 / m.cur.h, 1);
     }
     const near = Math.max(0, 1 - Math.abs(a.s - s - 3) / 7);
     a.pow += (near * 1.1 + a.hover * .6 + (isOpen ? 1.2 : 0) - a.pow) * k;
@@ -505,6 +581,7 @@ renderer.setAnimationLoop(() => {
       meta.append(b, document.createTextNode(cur.stage.years || cur.stage.role)); }
   }
   bar.style.width = `${Math.max(0, s / S_MAX_CAM) * 100}%`;
+  syncPlayer();
   renderer.render(scene, camera);
 });
 </script>
