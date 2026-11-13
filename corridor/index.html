@@ -3,12 +3,12 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Corridor</title>
+<title>Jules Croissant · Corridor</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
-  :root { --bg:#ffffff; --fg:#0f1a3d; --dim:#6b7391; --line:#1f54f033; }
+  :root { --bg:#ffffff; --fg:#0f1a3d; --dim:#6b7391; --line:#1f54f033; --blue:#1f54f0; }
   * { box-sizing:border-box; margin:0; }
   html,body { height:100%; background:var(--bg); color:var(--fg); overflow:hidden;
     font:400 11px/1.6 'JetBrains Mono',ui-monospace,monospace; letter-spacing:.04em; }
@@ -19,29 +19,32 @@
   footer { align-items:flex-end; }
   .brand { font:400 clamp(40px,6.5vw,84px)/.88 'Instrument Serif',serif; letter-spacing:-.01em; }
   .brand i { color:var(--dim); }
-  .meta, .keys { color:var(--dim); text-transform:uppercase; text-align:right; }
-  .idx { color:var(--dim); }
-  .title { font:400 30px/1.1 'Instrument Serif',serif; letter-spacing:0; min-height:33px; }
+  .meta, .keys, .touch { color:var(--dim); text-transform:uppercase; text-align:right; }
+  .meta b { display:block; color:var(--fg); font-weight:500; }
+  .idx { color:var(--dim); text-transform:uppercase; }
+  .title { font:400 30px/1.1 'Instrument Serif',serif; letter-spacing:0; min-height:33px; max-width:60vw; }
   .progress { width:180px; height:1px; background:var(--line); margin-top:12px; }
   .progress span { display:block; height:100%; width:0; background:var(--fg); transition:width .3s; }
   kbd { font:inherit; color:var(--fg); border:1px solid var(--line); border-radius:3px; padding:0 5px; }
-  .touch { display:none; color:var(--dim); text-transform:uppercase; text-align:right; }
-  @media (pointer:coarse) { .touch { display:block; } }
-  .card { position:fixed; right:28px; top:50%; width:260px; padding:20px; border:1px solid var(--line);
+  .touch { display:none; }
+  @media (pointer:coarse) { .touch { display:block; } .keys { display:none; } }
+  .card { position:fixed; right:28px; top:50%; width:280px; padding:20px; border:1px solid var(--line);
     background:#ffffffd9; backdrop-filter:blur(8px); pointer-events:none;
     opacity:0; transform:translate(16px,-50%); transition:opacity .4s, transform .4s; }
   .card.on { opacity:1; transform:translate(0,-50%); }
   .card h2 { font:400 34px/1 'Instrument Serif',serif; margin:6px 0 14px; letter-spacing:0; }
+  .card h2:empty { display:none; }
   .card p { color:var(--dim); }
+  .card p:empty { display:none; }
   .card dl { display:grid; grid-template-columns:auto 1fr; gap:4px 14px; margin-top:14px; text-transform:uppercase; }
+  .card dl:empty { display:none; }
   .card dt { color:var(--dim); }
-  .card .watch { display:inline-block; margin-top:16px; color:var(--fg); text-transform:uppercase; text-decoration:none;
-    border-bottom:1px solid var(--fg); pointer-events:auto; }
-  .card .watch:hover { color:#1f54f0; border-color:#1f54f0; }
-  @media (pointer:coarse) { .keys { display:none; } }
+  .card .hint { margin-top:14px; color:var(--dim); text-transform:uppercase; }
+  .card .hint:empty { display:none; }
+  .loading { position:fixed; left:50%; top:50%; transform:translate(-50%,-50%); color:var(--dim); text-transform:uppercase; }
   @media (max-width:700px) {
     .hud { padding:16px; }
-    .keys { display:none; }
+    .title { font-size:24px; max-width:none; }
     .card { left:16px; right:16px; width:auto; top:auto; bottom:110px; transform:translateY(16px); }
     .card.on { transform:none; }
   }
@@ -51,7 +54,7 @@
 <div class="hud">
   <header>
     <div class="brand">Jules<br><i>Croissant</i></div>
-    <div class="meta">Production vidéo<br>Greatest hits</div>
+    <div class="meta" id="meta"></div>
   </header>
   <div></div>
   <footer>
@@ -62,7 +65,7 @@
     </div>
     <div class="keys">
       <kbd>↑</kbd><kbd>↓</kbd> / molette — avancer<br>
-      <kbd>←</kbd><kbd>→</kbd> — œuvre précédente / suivante<br>
+      <kbd>←</kbd><kbd>→</kbd> — image précédente / suivante<br>
       clic / <kbd>Entrée</kbd> — ouvrir · <kbd>Échap</kbd> — fermer
     </div>
     <div class="touch">Glisser ↕ avancer<br>Glisser ↔ regarder<br>Toucher — ouvrir</div>
@@ -73,29 +76,98 @@
   <h2 id="cardTitle"></h2>
   <p id="cardText"></p>
   <dl id="cardMeta"></dl>
-  <a class="watch" id="cardLink" target="_blank" rel="noopener">Regarder sur YouTube ↗</a>
+  <div class="hint" id="cardHint"></div>
 </aside>
+<div class="loading" id="loading">Chargement…</div>
 
 <script type="importmap">{ "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js" } }</script>
 <script type="module">
 import * as THREE from 'three';
 
-// ---------- Corridor geometry: a bending path, s = distance along it ----------
-// ---------- Contenu : une entrée par vidéo (yt = identifiant YouTube, la partie après youtu.be/) ----------
-const WORKS = [
-  { yt: 'YjtqOSdSFG0', title: 'Booba x Julien Beats', format: 'Interview', text: 'La rencontre surprise du Duc avec le nouveau sniper.' },
-  { yt: 'iurBzLRrQRQ', title: 'Brad Pitt', format: 'Vidéo Club', text: 'La légende Brad Pitt est dans le Vidéo Club.' },
-  { yt: 'GVqOtVfTAd4', title: 'Adèle Exarchopoulos', format: 'Small Talk', text: 'Small Talk S05E03 : son date a fini à l’hôpital.' },
-  { yt: 'qkyXoi0LyFw', title: 'La Chesnaie', format: 'Reportage', text: 'Immersion dans La Chesnaie, la clinique psychiatrique alternative.' },
-  { yt: 'En11SquByQc', title: 'Les Incels', format: 'Reportage', text: 'Ces hommes qui veulent détruire les femmes. Un reportage Konbini News.' },
+// ================= Contenu =================
+// Les étapes du parcours, dans l'ordre du couloir. Chaque étape ouvre sur un panneau.
+const STAGES = [
+  { id: 'etudes',    title: 'Études',                            years: '2016 — 2021',      role: 'Lyon · Séoul · Paris',
+    text: 'Science politique à Lyon 2, échange à Chung-Ang University, master de production audiovisuelle à Paris 3.' },
+  { id: 'konbini',   title: 'Arrivée chez Konbini',               years: '2020 — 2021',      role: 'Assistant de production',
+    text: 'Stage, CDD puis alternance : tournages Konbini Pop, planning, assistanat post-production.' },
+  { id: 'news',      title: 'Konbini News',                      years: '2021 — 2025',      role: 'Chargé de production éditoriale',
+    text: 'Reportages et tournages en France et à l’étranger, formats longs, présidentielle 2022.' },
+  { id: 'direction', title: 'Direction de la production éditoriale', years: '2025 — 2026',  role: 'Directeur de production éditoriale',
+    text: 'Budget, outils et process de production, équipes image et montage.' },
+  { id: 'head',      title: 'Head of Production',                years: '2026 — aujourd’hui', role: 'Konbini',
+    text: 'Co-direction du département Production, éditorial et brand content.' },
+  { id: 'bureau',    title: 'À-côtés',                           years: '',                 role: 'Bureaux',
+    text: 'Le bordel des bureaux, qui a son charme.' },
+  { id: 'mood',      title: 'Mood',                              years: '',                 role: '',
+    text: '' },
 ];
+// Médias (générés) : [fichier, largeur/hauteur, type]
+const MEDIA = [
+  ['etudes-01', 1.3333, 'photo'],
+  ['etudes-02', 0.7500, 'photo'],
+  ['etudes-03', 0.7500, 'photo'],
+  ['etudes-04', 1.4679, 'photo'],
+  ['konbini-01', 0.7500, 'photo'],
+  ['konbini-02', 1.3333, 'photo'],
+  ['konbini-03', 0.7500, 'photo'],
+  ['konbini-04', 0.7500, 'photo'],
+  ['konbini-05', 0.7500, 'photo'],
+  ['konbini-06', 1.3333, 'photo'],
+  ['konbini-07', 0.9867, 'photo'],
+  ['konbini-08', 0.6227, 'photo'],
+  ['konbini-09', 1.3333, 'photo'],
+  ['news-01', 0.7500, 'photo'],
+  ['news-02', 0.7500, 'photo'],
+  ['news-03', 1.3333, 'photo'],
+  ['news-04', 0.7500, 'photo'],
+  ['news-05', 0.7500, 'photo'],
+  ['news-06', 0.5625, 'video'],
+  ['news-07', 0.5625, 'video'],
+  ['news-08', 0.7500, 'photo'],
+  ['news-09', 0.7500, 'photo'],
+  ['news-10', 0.7500, 'photo'],
+  ['news-11', 0.7500, 'photo'],
+  ['news-12', 0.7500, 'photo'],
+  ['news-13', 0.7500, 'photo'],
+  ['news-14', 0.7500, 'photo'],
+  ['direction-01', 0.7500, 'photo'],
+  ['direction-02', 0.7500, 'photo'],
+  ['direction-03', 0.7500, 'photo'],
+  ['direction-04', 1.0000, 'photo'],
+  ['direction-05', 1.0000, 'photo'],
+  ['direction-06', 1.3333, 'photo'],
+  ['direction-07', 0.7500, 'photo'],
+  ['direction-08', 1.3333, 'photo'],
+  ['direction-09', 0.7500, 'photo'],
+  ['direction-10', 1.3333, 'photo'],
+  ['direction-11', 0.7500, 'photo'],
+  ['direction-12', 1.3333, 'photo'],
+  ['direction-13', 0.7500, 'photo'],
+  ['bureau-01', 0.7500, 'photo'],
+  ['bureau-02', 0.7500, 'photo'],
+  ['bureau-03', 1.3333, 'photo'],
+  ['bureau-04', 1.3333, 'photo'],
+  ['bureau-05', 1.3333, 'photo'],
+  ['bureau-06', 0.7500, 'photo'],
+  ['bureau-07', 0.7500, 'photo'],
+  ['bureau-08', 0.7500, 'photo'],
+  ['mood-01', 1.4798, 'photo'],
+  ['mood-02', 0.4656, 'photo'],
+  ['mood-03', 1.0122, 'photo'],
+  ['mood-04', 0.5867, 'photo'],
+  ['mood-05', 0.7500, 'photo'],
+  ['mood-06', 1.0000, 'photo'],
+  ['mood-07', 1.3533, 'photo'],
+  ['mood-08', 1.7778, 'photo'],
+];
+// Légendes : clé = nom du fichier. Laisser vide = pas de légende.
+const CAPTIONS = {
+  // 'etudes-01': { title: 'Lyon 2', text: '…', year: '2017', place: 'Lyon' },
+};
 
-const W = 6, H = 4, COUNT = WORKS.length, SPACING = 7, START = 6;
-const PW = 2.4, PH = 1.35, FW = PW + .12, FH = PH + .12; // 16:9 screen and its frame
-const S_MIN = -16, S_END = START + SPACING * (COUNT - 1) + 24;
-const S_MAX_CAM = START + SPACING * (COUNT - 1) - 3;
-const UP = new THREE.Vector3(0, 1, 0);
-
+// ================= Couloir : un chemin qui ondule, s = distance le long =================
+const W = 6, H = 4, STEP = 5, PANEL_GAP = 9, START = 6, UP = new THREE.Vector3(0, 1, 0);
 const center = s => new THREE.Vector3(Math.sin(s * .06) * 5 + Math.sin(s * .023) * 3, Math.sin(s * .04) * .8, -s);
 function frame(s) {
   const c = center(s), T = center(s + .01).sub(c).normalize();
@@ -105,15 +177,26 @@ function frame(s) {
 }
 const at = (s, a, b) => { const f = frame(s); return f.c.addScaledVector(f.R, a).addScaledVector(f.U, b); };
 
-{ const f = frame(37); console.assert(Math.abs(f.R.dot(f.T)) < 1e-6 && Math.abs(f.U.dot(f.T)) < 1e-6 && Math.abs(f.U.length() - 1) < 1e-6, 'corridor frame not orthonormal'); }
+// Liste à plat : panneau d'étape puis ses médias
+const ENTRIES = [];
+{ let s = START, side = -1;
+  for (const st of STAGES) {
+    const media = MEDIA.filter(m => m[0].startsWith(st.id + '-'));
+    ENTRIES.push({ kind: 'panel', stage: st, s, side, ratio: .8 }); side = -side; s += PANEL_GAP;
+    media.forEach(([id, ratio, kind], k) => {
+      ENTRIES.push({ kind, id, stage: st, n: k + 1, of: media.length, s, side, ratio, cap: CAPTIONS[id] || {} });
+      side = -side; s += STEP;
+    });
+    s += PANEL_GAP - STEP;
+  }
+}
+const COUNT = ENTRIES.length;
+const S_MIN = -16, S_LAST = ENTRIES[COUNT - 1].s, S_END = S_LAST + 24, S_MAX_CAM = S_LAST - 3;
 
-// ---------- Scene ----------
+// ================= Scène =================
 let renderer;
 try { renderer = new THREE.WebGLRenderer({ antialias: true }); }
-catch (e) { // no WebGL (disabled GPU, old device): say so instead of a blank page
-  title.textContent = 'WebGL indisponible sur ce navigateur.';
-  throw e;
-}
+catch (e) { loading.textContent = 'WebGL indisponible sur ce navigateur.'; throw e; }
 renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
 renderer.setSize(innerWidth, innerHeight);
 document.body.prepend(renderer.domElement);
@@ -122,9 +205,8 @@ scene.background = new THREE.Color(0xffffff);
 scene.fog = new THREE.FogExp2(0xffffff, .05);
 const camera = new THREE.PerspectiveCamera(60, innerWidth / innerHeight, .05, 200);
 
-// ---------- Wireframe grid that lights up near artworks ----------
-const pts = [];
-const seg = (p, q) => pts.push(p.x, p.y, p.z, q.x, q.y, q.z);
+// Grille filaire qui s'illumine près des images (8 lumières : les plus proches de la caméra)
+const pts = [], seg = (p, q) => pts.push(p.x, p.y, p.z, q.x, q.y, q.z);
 for (let s = S_MIN; s <= S_END; s += 1.5) {
   const c = [[-W/2,-H/2],[W/2,-H/2],[W/2,H/2],[-W/2,H/2]].map(([a, b]) => at(s, a, b));
   for (let i = 0; i < 4; i++) seg(c[i], c[(i + 1) % 4]);
@@ -132,24 +214,18 @@ for (let s = S_MIN; s <= S_END; s += 1.5) {
 const rails = [];
 for (let a = -W/2; a <= W/2 + 1e-6; a += 1) rails.push([a, -H/2], [a, H/2]);
 for (let b = -H/2 + 1; b <= H/2 - 1 + 1e-6; b += 1) rails.push([-W/2, b], [W/2, b]);
-for (const [a, b] of rails) {
-  let prev = at(S_MIN, a, b);
-  for (let s = S_MIN + .5; s <= S_END; s += .5) { const p = at(s, a, b); seg(prev, p); prev = p; }
-}
+for (const [a, b] of rails) { let prev = at(S_MIN, a, b);
+  for (let s = S_MIN + .5; s <= S_END; s += .5) { const p = at(s, a, b); seg(prev, p); prev = p; } }
 const gridGeo = new THREE.BufferGeometry();
 gridGeo.setAttribute('position', new THREE.Float32BufferAttribute(pts, 3));
-
-const lightPos = Array.from({ length: COUNT }, () => new THREE.Vector3());
-const lightCol = Array.from({ length: COUNT }, () => new THREE.Vector3());
-const lightPow = new Array(COUNT).fill(0);
+const NL = 8, lightPos = Array.from({ length: NL }, () => new THREE.Vector3(0, -999, 0)), lightPow = new Array(NL).fill(0);
 const gridMat = new THREE.ShaderMaterial({
-  uniforms: { uL: { value: lightPos }, uC: { value: lightCol }, uP: { value: lightPow }, uCam: { value: new THREE.Vector3() } },
+  uniforms: { uL: { value: lightPos }, uP: { value: lightPow }, uCam: { value: new THREE.Vector3() } },
   vertexShader: `varying vec3 vW;
     void main(){ vec4 w = modelMatrix * vec4(position,1.); vW = w.xyz; gl_Position = projectionMatrix * viewMatrix * w; }`,
-  fragmentShader: `#define N ${COUNT}
-    uniform vec3 uL[N]; uniform vec3 uC[N]; uniform float uP[N]; uniform vec3 uCam; varying vec3 vW;
+  fragmentShader: `#define N ${NL}
+    uniform vec3 uL[N]; uniform float uP[N]; uniform vec3 uCam; varying vec3 vW;
     void main(){
-      // blue lines on white: near an artwork the line darkens to full blue
       float glow = 0.;
       for(int i=0;i<N;i++){ vec3 d = vW - uL[i]; glow += uP[i] * exp(-dot(d,d) * .09); }
       float k = (.38 + .62 * clamp(glow, 0., 1.)) * exp(-length(vW - uCam) * .05);
@@ -157,56 +233,76 @@ const gridMat = new THREE.ShaderMaterial({
     }`,
 });
 scene.add(new THREE.LineSegments(gridGeo, gridMat));
-
-// ---------- Artworks: YouTube thumbnails (served with CORS, so usable as textures) ----------
 await document.fonts.ready;
 
-function placeholder(i) {
-  const c = document.createElement('canvas'); c.width = 640; c.height = 360;
+// Panneau d'étape : texte dessiné sur un canvas
+function panelTexture(st, idx) {
+  const c = document.createElement('canvas'); c.width = 800; c.height = 1000;
   const g = c.getContext('2d');
-  g.fillStyle = '#0f1a3d'; g.fillRect(0, 0, 640, 360);
-  g.fillStyle = 'rgba(255,255,255,.85)'; g.font = '500 22px "JetBrains Mono", monospace';
-  g.fillText(`${String(i + 1).padStart(2, '0')} — ${WORKS[i].title.toUpperCase()}`, 32, 324);
-  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t;
-}
-const loader = new THREE.TextureLoader().setCrossOrigin('anonymous');
-function thumbInto(mat, id) {
-  const done = (t, crop) => {
-    t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = renderer.capabilities.getMaxAnisotropy();
-    if (crop) { t.repeat.set(1, .75); t.offset.set(0, .125); } // hqdefault is 4:3 with black bars: keep the 16:9 middle
-    mat.map.dispose(); mat.map = t; mat.needsUpdate = true;
-  };
-  // maxresdefault does not exist for every video: YouTube then answers 404 *with* a 120×90 grey image → fall back to hqdefault
-  const fallback = () => loader.load(`https://i.ytimg.com/vi/${id}/hqdefault.jpg`, t => done(t, true));
-  loader.load(`https://i.ytimg.com/vi/${id}/maxresdefault.jpg`, t => t.image.width > 200 ? done(t, false) : (t.dispose(), fallback()), undefined, fallback);
+  g.fillStyle = '#ffffff'; g.fillRect(0, 0, 800, 1000);
+  g.strokeStyle = '#1f54f0'; g.lineWidth = 6; g.strokeRect(24, 24, 752, 952);
+  g.fillStyle = '#6b7391'; g.font = '500 30px "JetBrains Mono", monospace';
+  g.fillText(idx, 72, 120);
+  g.fillText((st.years || '').toUpperCase(), 72, 900);
+  g.fillStyle = '#0f1a3d'; g.font = '400 112px "Instrument Serif", serif';
+  const words = st.title.split(' '); let line = '', y = 300;
+  for (const w of words) { const t = line ? line + ' ' + w : w;
+    if (g.measureText(t).width > 650 && line) { g.fillText(line, 72, y); line = w; y += 108; } else line = t; }
+  g.fillText(line, 72, y);
+  g.fillStyle = '#1f54f0'; g.font = 'italic 400 54px "Instrument Serif", serif';
+  if (st.role) g.fillText(st.role, 72, y + 96);
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = renderer.capabilities.getMaxAnisotropy();
+  return t;
 }
 
-const planeGeo = new THREE.PlaneGeometry(PW, PH);
-const edgeGeo = new THREE.EdgesGeometry(new THREE.PlaneGeometry(FW, FH));
+// ================= Accrochage =================
+const MAXW = 2.4, MAXH = 1.9, PANEL_H = 2.5;
+const loader = new THREE.TextureLoader();
 const arts = [];
-for (let i = 0; i < COUNT; i++) {
-  const s = START + i * SPACING, side = i % 2 ? 1 : -1, hue = (i * 47 + 190) % 360;
-  const f = frame(s);
+let stageNo = 0;
+ENTRIES.forEach((e, i) => {
+  const isPanel = e.kind === 'panel';
+  if (isPanel) stageNo++;
+  let w, h;
+  if (isPanel) { h = PANEL_H; w = h * e.ratio; }
+  else { w = MAXW; h = w / e.ratio; if (h > MAXH) { h = MAXH; w = h * e.ratio; } }
+  const f = frame(e.s), side = e.side;
   const z = f.R.clone().multiplyScalar(-side), y = f.U.clone(), x = new THREE.Vector3().crossVectors(y, z);
   const wallQuat = new THREE.Quaternion().setFromRotationMatrix(new THREE.Matrix4().makeBasis(x, y, z));
-  const wallPos = f.c.clone().addScaledVector(f.R, side * (W / 2 - .04)).addScaledVector(f.U, .15);
-  const col = new THREE.Color(`hsl(${hue},85%,62%)`).convertLinearToSRGB(); // shader writes raw sRGB
-
-  const mat = new THREE.MeshBasicMaterial({ map: placeholder(i) });
-  thumbInto(mat, WORKS[i].yt);
-  const mesh = new THREE.Mesh(planeGeo, mat);
-  mesh.add(new THREE.LineSegments(edgeGeo, new THREE.LineBasicMaterial({ color: 0x1f54f0 })));
+  const wallPos = f.c.clone().addScaledVector(f.R, side * (W / 2 - .04)).addScaledVector(f.U, isPanel ? .1 : .15);
+  const mat = new THREE.MeshBasicMaterial({ color: isPanel ? 0xffffff : 0xe9eefc, map: isPanel ? panelTexture(e.stage, String(stageNo).padStart(2, '0') + ' / ' + STAGES.length) : null });
+  const mesh = new THREE.Mesh(new THREE.PlaneGeometry(w, h), mat);
+  if (!isPanel) mesh.add(new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.PlaneGeometry(w + .12, h + .12)), new THREE.LineBasicMaterial({ color: 0x1f54f0 })));
   mesh.position.copy(wallPos); mesh.quaternion.copy(wallQuat);
   scene.add(mesh);
-
-  lightPos[i].copy(wallPos).addScaledVector(f.R, -side * 1.2);
-  lightCol[i].set(col.r, col.g, col.b);
-  arts.push({ i, s, side, mesh, wallPos, wallQuat, t: 0, hover: 0,
-    ...WORKS[i], name: WORKS[i].title });
-}
+  const light = wallPos.clone().addScaledVector(f.R, -side * 1.2);
+  arts.push({ ...e, i, mesh, mat, w, h, wallPos, wallQuat, light, t: 0, hover: 0, pow: 0, loaded: isPanel, loading: false, video: null });
+});
 const meshes = arts.map(a => a.mesh);
+loading.remove();
 
-// ---------- State & input ----------
+// Chargement paresseux : seules les images proches occupent la mémoire (important sur téléphone)
+const NEAR = 30, FAR = 45;
+function stream(a, dist) {
+  if (a.kind === 'panel') return;
+  if (dist < NEAR && !a.loaded && !a.loading) {
+    a.loading = true;
+    const done = t => { t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = renderer.capabilities.getMaxAnisotropy();
+      a.mat.map = t; a.mat.color.set(0xffffff); a.mat.needsUpdate = true; a.loaded = true; a.loading = false; };
+    if (a.kind === 'video') {
+      const v = document.createElement('video');
+      Object.assign(v, { src: `media/${a.id}.mp4`, poster: `media/${a.id}.jpg`, muted: true, loop: true, playsInline: true, preload: 'auto' });
+      v.setAttribute('playsinline', ''); v.setAttribute('muted', '');
+      a.video = v; v.play().catch(() => {});
+      done(new THREE.VideoTexture(v));
+    } else loader.load(`media/${a.id}.jpg`, done, undefined, () => { a.loading = false; });
+  } else if (dist > FAR && a.loaded && a !== selected) {
+    a.mat.map.dispose(); a.mat.map = null; a.mat.color.set(0xe9eefc); a.mat.needsUpdate = true; a.loaded = false;
+    if (a.video) { a.video.pause(); a.video.removeAttribute('src'); a.video.load(); a.video = null; }
+  }
+}
+
+// ================= État & interactions =================
 let s = S_MIN + 4, sT = 0, mx = 0, my = 0, mxT = 0, myT = 0, yaw = 0, yawT = 0, selected = null, hovered = null;
 const clampS = v => Math.min(Math.max(v, 0), S_MAX_CAM);
 const nearest = v => arts.reduce((b, a) => Math.abs(a.s - v - 4) < Math.abs(b.s - v - 4) ? a : b);
@@ -214,38 +310,39 @@ const ndc = new THREE.Vector2(-9, -9), ray = new THREE.Raycaster();
 const pick = () => { ray.setFromCamera(ndc, camera); const h = ray.intersectObjects(meshes, false)[0];
   return h && h.distance < 14 ? arts[meshes.indexOf(h.object)] : null; };
 
-// Where the opened artwork sits: on mobile, in the free space between the header and the card
+// Où se pose l'image ouverte : sur mobile, dans l'espace libre entre l'en-tête et la fiche
 const tanH = () => Math.tan(THREE.MathUtils.degToRad(camera.fov / 2));
 let view = { dist: 3, ox: 0, oy: 0 };
 function layoutView() {
-  const t = tanH(), a = camera.aspect;
-  if (innerWidth > 700) { // wide screens: the card sits on the right, the screen fills ~55% of the width on the left
-    const wide = a > 1.1, fx = wide ? .55 : .85;
-    const dist = Math.max(FW / (2 * t * a * fx), FH / (2 * t * .62));
-    view = { dist, ox: wide ? -.22 * t * a * dist : 0, oy: 0 }; return;
+  const t = tanH(), asp = camera.aspect, a = selected;
+  const FW = (a ? a.w : MAXW) + .12, FH = (a ? a.h : MAXH) + .12;
+  if (innerWidth > 700) {
+    const wide = asp > 1.1, fx = wide ? .55 : .85;
+    const dist = Math.max(FW / (2 * t * asp * fx), FH / (2 * t * .6));
+    view = { dist, ox: wide ? -.22 * t * asp * dist : 0, oy: 0 }; return;
   }
   const top = document.querySelector('header').getBoundingClientRect().bottom + 12;
-  const bottom = card.offsetTop - 12; // offsetTop ignores the slide-in transform
+  const bottom = card.offsetTop - 12;
   const hPx = Math.max(120, bottom - top);
-  // fit the frame's height in the gap and its width in the screen
-  const dist = Math.max(FH * innerHeight / (hPx * 2 * t), FW * innerWidth / ((innerWidth - 32) * 2 * t * a));
-  const ndcY = 1 - (top + bottom) / innerHeight;
-  view = { dist, ox: 0, oy: ndcY * t * dist };
+  const dist = Math.max(FH * innerHeight / (hPx * 2 * t), FW * innerWidth / ((innerWidth - 32) * 2 * t * asp));
+  view = { dist, ox: 0, oy: (1 - (top + bottom) / innerHeight) * t * dist };
 }
 
-function open(a) { selected = a; sT = s;
-  cardIdx.textContent = `${String(a.i + 1).padStart(2, '0')} / ${COUNT}`;
-  cardTitle.textContent = a.name;
-  cardText.textContent = a.text;
+const label = a => a.kind === 'panel' ? a.stage.title : (a.cap.title || a.stage.title);
+function open(a) {
+  selected = a; sT = s;
+  cardIdx.textContent = a.kind === 'panel' ? `Étape ${STAGES.indexOf(a.stage) + 1} / ${STAGES.length}` : `${a.stage.title} · ${String(a.n).padStart(2, '0')} / ${a.of}`;
+  cardTitle.textContent = a.kind === 'panel' ? a.stage.title : (a.cap.title || '');
+  cardText.textContent = a.kind === 'panel' ? a.stage.text : (a.cap.text || '');
   cardMeta.innerHTML = '';
-  for (const [k, v] of [['Format', a.format], ['Année', a.year], ['Chaîne', 'Konbini']]) {
-    if (!v) continue; // year stays hidden until it is filled in
-    const dt = document.createElement('dt'), dd = document.createElement('dd');
-    dt.textContent = k; dd.textContent = v; cardMeta.append(dt, dd);
-  }
-  cardLink.href = `https://youtu.be/${a.yt}`;
-  card.classList.add('on'); layoutView(); }
-function close() { selected = null; card.classList.remove('on'); }
+  const rows = a.kind === 'panel' ? [['Années', a.stage.years], ['Poste', a.stage.role]] : [['Année', a.cap.year], ['Lieu', a.cap.place]];
+  for (const [k, v] of rows) { if (!v) continue;
+    const dt = document.createElement('dt'), dd = document.createElement('dd'); dt.textContent = k; dd.textContent = v; cardMeta.append(dt, dd); }
+  cardHint.textContent = a.video ? 'Son activé · toucher pour fermer' : '';
+  if (a.video) { a.video.muted = false; a.video.currentTime = 0; a.video.play().catch(() => {}); }
+  card.classList.add('on'); layoutView();
+}
+function close() { if (selected?.video) selected.video.muted = true; selected = null; card.classList.remove('on'); }
 const go = dir => { const n = arts[Math.min(Math.max(nearest(sT).i + dir, 0), COUNT - 1)]; sT = clampS(n.s - 5.5); };
 
 addEventListener('pointermove', e => {
@@ -259,7 +356,7 @@ renderer.domElement.addEventListener('click', () => {
   const a = pick(); if (a) open(a);
 });
 addEventListener('wheel', e => { e.preventDefault(); if (!selected) sT = clampS(sT + e.deltaY * .012); }, { passive: false });
-// touch: the first clear direction of a swipe wins — vertical moves, horizontal turns the head
+// tactile : la première direction franche du glissement gagne — vertical avance, horizontal tourne la tête
 let touchX = null, touchY = null, axis = null, dragged = false;
 addEventListener('touchstart', e => { touchX = e.touches[0].clientX; touchY = e.touches[0].clientY; axis = null; dragged = false; }, { passive: true });
 addEventListener('touchmove', e => {
@@ -267,7 +364,7 @@ addEventListener('touchmove', e => {
   if (!axis) { if (Math.hypot(dx, dy) < 6) return; axis = Math.abs(dx) > Math.abs(dy) ? 'x' : 'y'; dragged = true; }
   if (!selected) {
     if (axis === 'x') yawT = Math.min(Math.max(yawT + dx * .003, -.45), .45);
-    else { sT = clampS(sT - dy * .03); yawT *= .92; } // walking recenters the gaze
+    else { sT = clampS(sT - dy * .03); yawT *= .92; }
   }
   touchX = x; touchY = y;
 }, { passive: true });
@@ -284,15 +381,14 @@ addEventListener('keydown', e => {
 });
 addEventListener('resize', () => {
   camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix();
-  renderer.setSize(innerWidth, innerHeight);
-  layoutView();
+  renderer.setSize(innerWidth, innerHeight); layoutView();
 });
 layoutView();
 
-// ---------- Loop ----------
+// ================= Boucle =================
 const clock = new THREE.Clock();
 const tmpQ = new THREE.Quaternion(), fwd = new THREE.Vector3(), right = new THREE.Vector3(), upv = new THREE.Vector3(), front = new THREE.Vector3();
-let lastIdx = -1;
+let lastIdx = -1, lastStage = null;
 
 renderer.setAnimationLoop(() => {
   const dt = Math.min(clock.getDelta(), .05), time = clock.elapsedTime;
@@ -314,33 +410,38 @@ renderer.setAnimationLoop(() => {
   front.copy(camera.position).addScaledVector(fwd, view.dist).addScaledVector(right, view.ox).addScaledVector(upv, view.oy);
 
   for (const a of arts) {
+    const d = Math.abs(a.s - s);
+    stream(a, d);
+    if (d > FAR && a !== selected && a.t < .001) { a.mesh.visible = false; continue; }
+    a.mesh.visible = true;
     a.t += ((a === selected ? 1 : 0) - a.t) * (1 - Math.exp(-dt * 5));
     a.hover += ((a === hovered ? 1 : 0) - a.hover) * k;
     if (a.t > .001) {
       const e = a.t * a.t * (3 - 2 * a.t);
       const normal = new THREE.Vector3(0, 0, 1).applyQuaternion(a.wallQuat);
       const mid = a.wallPos.clone().addScaledVector(normal, 1.4);
-      // quadratic bezier wall → off-wall → in front of camera = the "peel"
-      a.mesh.position.copy(a.wallPos).multiplyScalar((1 - e) ** 2)
-        .addScaledVector(mid, 2 * e * (1 - e)).addScaledVector(front, e * e);
+      a.mesh.position.copy(a.wallPos).multiplyScalar((1 - e) ** 2).addScaledVector(mid, 2 * e * (1 - e)).addScaledVector(front, e * e);
       a.mesh.quaternion.slerpQuaternions(a.wallQuat, camera.quaternion, e)
         .multiply(tmpQ.setFromAxisAngle(UP, Math.sin(e * Math.PI) * .6 * a.side));
     } else { a.mesh.position.copy(a.wallPos); a.mesh.quaternion.copy(a.wallQuat); }
     a.mesh.scale.setScalar(1 + a.hover * .05);
-
     const near = Math.max(0, 1 - Math.abs(a.s - s - 3) / 7);
-    const target = near * 1.1 + a.hover * .6 + (a === selected ? 1.2 : 0);
-    lightPow[a.i] += (target - lightPow[a.i]) * k;
+    a.pow += (near * 1.1 + a.hover * .6 + (a === selected ? 1.2 : 0) - a.pow) * k;
   }
+  // les 8 images les plus proches éclairent la grille
+  const lit = arts.filter(a => Math.abs(a.s - s) < 20).sort((p, q) => q.pow - p.pow).slice(0, NL);
+  for (let j = 0; j < NL; j++) { const a = lit[j]; if (a) { lightPos[j].copy(a.light); lightPow[j] = a.pow; } else lightPow[j] = 0; }
 
   const cur = nearest(s);
   if (cur.i !== lastIdx) {
     lastIdx = cur.i;
-    idx.textContent = `${String(cur.i + 1).padStart(2, '0')} / ${COUNT}`;
-    title.textContent = cur.name;
+    idx.textContent = cur.kind === 'panel' ? `Étape ${STAGES.indexOf(cur.stage) + 1} / ${STAGES.length}` : `${String(cur.n).padStart(2, '0')} / ${cur.of}`;
+    title.textContent = label(cur);
+    if (cur.stage !== lastStage) { lastStage = cur.stage;
+      meta.innerHTML = ''; const b = document.createElement('b'); b.textContent = cur.stage.title;
+      meta.append(b, document.createTextNode(cur.stage.years || cur.stage.role)); }
   }
   bar.style.width = `${Math.max(0, s / S_MAX_CAM) * 100}%`;
-
   renderer.render(scene, camera);
 });
 </script>
