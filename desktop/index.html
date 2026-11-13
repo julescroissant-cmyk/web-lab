@@ -324,7 +324,6 @@ const C = {
       { name: 'France', items: [
         { name: 'Accusé à tort', ext: 'mp4', yt: 'WzbVKaBdHJI', desc: 'Konbini Documentaire · peut-on être accusé à tort d’avoir secoué son bébé ?', year: null },
         { name: 'XXL', ext: 'mp4', yt: 'xOWNDgb_kDo', desc: 'Reportage · ils révolutionnent la danse avec des corps « gros » : l’aventure XXL', year: null },
-        { name: 'Deepfakes', ext: 'mp4', yt: 'Zy03pgs3wyc', desc: 'Reportage · enquête sur les deepfakes porno en France', year: null },
         { name: 'Les masculinistes', ext: 'mp4', yt: '7i5tEs8q1yc', desc: 'Reportage · qui sont les masculinistes en France ?', year: null },
         { name: 'Le combat pour la justice', ext: 'mp4', yt: 'PDy3RpQTktw', desc: 'Reportage · drogue, vol et violence : le combat pour la justice', year: null },
         { name: 'Champignons hallucinogènes', ext: 'mp4', yt: 'rXt_DtUoa3c', desc: 'Reportage en France · des champignons hallucinogènes contre l’addiction ?', year: null },
@@ -903,7 +902,9 @@ function paint() {
   g.fillStyle = vg; g.fillRect(0, 0, W, H);
   wall.style.backgroundImage = `url("${cv.toDataURL('image/jpeg', .92)}")`;
 }
-const wallpaper = C.wallpapers.length ? C.wallpapers[Math.random() * C.wallpapers.length | 0] : '';
+// sur téléphone, l'hydravion fait trop chargé derrière les icônes : Séoul seulement
+const walls = innerWidth <= 700 ? C.wallpapers.filter(w => !w.includes('mood-08')) : C.wallpapers;
+const wallpaper = walls.length ? walls[Math.random() * walls.length | 0] : '';
 paint();
 let rt;
 addEventListener('resize', () => {

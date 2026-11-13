@@ -10,7 +10,7 @@
 <style>
   :root { --bg:#ffffff; --fg:#0f1a3d; --dim:#6b7391; --line:#1f54f033; --blue:#1f54f0; --card:#ffffffd9; }
   @media (prefers-color-scheme: dark) {
-    :root { --bg:#07090f; --fg:#e8ecff; --dim:#8a93b5; --line:#5fb4ff44; --blue:#5fb4ff; --card:#0d1220e0; }
+    :root { --bg:#0b0806; --fg:#f6ece2; --dim:#a8988a; --line:#ffa24a44; --blue:#ffa24a; --card:#140e0ae0; }
   }
   * { box-sizing:border-box; margin:0; }
   html,body { height:100%; background:var(--bg); color:var(--fg); overflow:hidden;
@@ -99,21 +99,36 @@ import * as THREE from 'three';
 // ================= Contenu =================
 // Projets mis en avant : yt = identifiant YouTube. text = ta description (vide = rien d'affiché).
 const PROJECTS = {
+  // Arrivée chez Konbini
+  mPATl2Pw9Lw: { title: 'Vidéo Club · Béatrice Dalle', format: 'Vidéo Club', year: '', text: '' },
+  AWF222iqqLA: { title: 'Vidéo Club · Mathieu Kassovitz', format: 'Vidéo Club', year: '', text: '' },
+  YjtqOSdSFG0: { title: 'Booba x Julien Beats', format: 'Interview', year: '', text: '' },
+  // Konbini News · présidentielle
   bwWgcEKt4E4: { title: 'Emmanuel Macron · urgence climatique', format: 'Interview présidentielle', year: '2022', text: '' },
-  'a-vN-7s14Kg': { title: 'Colonia Dignidad', format: 'Reportage au Chili', year: '', text: '' },
+  Y6xmVImERoY: { title: 'Le programme des candidat·es · précarité des jeunes', format: 'Présidentielle 2022', year: '2022', text: '' },
+  // Konbini News · reportages et documentaires
   WzbVKaBdHJI: { title: 'Accusé à tort', format: 'Konbini Documentaire', year: '', text: '' },
-  qkyXoi0LyFw: { title: 'La Chesnaie', format: 'Reportage', year: '', text: '' },
-  LNldcBoiNbk: { title: 'Ukraine', format: 'Reportage', year: '', text: '' },
-  '8dPnqTP9ZMQ': { title: 'Make Avortement Great Again', format: 'Reportage aux États-Unis', year: '', text: '' },
   xOWNDgb_kDo: { title: 'XXL', format: 'Reportage', year: '', text: '' },
+  '7i5tEs8q1yc': { title: 'Les masculinistes', format: 'Reportage', year: '', text: '' },
+  PDy3RpQTktw: { title: 'Le combat pour la justice', format: 'Reportage', year: '', text: '' },
+  rXt_DtUoa3c: { title: 'Champignons hallucinogènes contre l’addiction', format: 'Reportage', year: '', text: '' },
+  qkyXoi0LyFw: { title: 'La Chesnaie', format: 'Reportage', year: '', text: '' },
+  'a-vN-7s14Kg': { title: 'Colonia Dignidad', format: 'Reportage au Chili', year: '', text: '' },
+  iw39FyYioUc: { title: 'La première école transgenre', format: 'Reportage au Chili', year: '', text: '' },
+  '8dPnqTP9ZMQ': { title: 'Make Avortement Great Again', format: 'Reportage aux États-Unis', year: '', text: '' },
+  iUCg5P910BI: { title: 'Trop jeunes pour dire oui', format: 'Reportage aux États-Unis', year: '', text: '' },
+  '6hVDoIzw_54': { title: 'Champignons contre les traumas', format: 'Reportage aux États-Unis', year: '', text: '' },
+  'IkO56jyz2-c': { title: 'Gaz de schiste', format: 'Reportage aux États-Unis', year: '', text: '' },
+  LNldcBoiNbk: { title: 'Ukraine', format: 'Reportage', year: '', text: '' },
+  // Direction de la production
   GVqOtVfTAd4: { title: 'Small Talk · Adèle Exarchopoulos', format: 'Small Talk', year: '', text: '' },
-  iurBzLRrQRQ: { title: 'Vidéo Club · Brad Pitt', format: 'Vidéo Club', year: '', text: '' },
-  i5x2hm7Epdc: { title: 'Jeux Vidéo Club · Guillaume Broche', format: 'Jeux Vidéo Club', year: '', text: '' },
+  'sGHH-UzRhxY': { title: 'Vidéo Club · le casting de L’Odyssée', format: 'Vidéo Club', year: '', text: '' },
+  UfmRgJmdplo: { title: 'Vidéo Club · Regelegorila', format: 'Vidéo Club', year: '', text: '' },
   PxbymaIm_0k: { title: 'Processus · Disiz', format: 'Création de format', year: '', text: '' },
   oQNhcCQ11QU: { title: 'Walk and Talk · Anyme', format: 'Création de format', year: '', text: '' },
   'A-tHMViRwKM': { title: 'Open Files · Trump, tech et manipulation', format: 'Création de format', year: '', text: '' },
   '9X2Wn5pQ9kw': { title: 'Carte Blanche · Mister V', format: 'One shot', year: '', text: '' },
-  UfmRgJmdplo: { title: 'Vidéo Club · Regelegorila', format: 'Vidéo Club', year: '', text: '' },
+  VxhJTdN2q6k: { title: 'La rue la plus cool de Paris', format: 'One shot', year: '', text: '' },
 };
 // Le parcours. Dans chaque étape, dans l'ordre du couloir :
 //   { p: 'idYouTube' }                       → un projet (le cœur de l'étape)
@@ -126,24 +141,23 @@ const STAGES = [
     items: [ { g: 'Lyon, puis Séoul', photos: ['etudes-01', 'etudes-02', 'etudes-03'] }, { g: 'Le mémoire', photos: ['etudes-04'] } ] },
   { id: 'konbini', title: 'Arrivée chez Konbini', years: '2020 — 2021', role: 'Assistant de production',
     text: 'Stage, CDD puis alternance : tournages Konbini Pop, planning, assistanat post-production.',
-    items: [ { g: 'Premiers jours', photos: ['konbini-03'] },
-             { g: 'Les plateaux', photos: ['konbini-02', 'konbini-04'] } ] },
+    items: [ { p: 'mPATl2Pw9Lw' }, { g: 'Premiers jours', photos: ['konbini-03', 'konbini-02', 'konbini-04'] }, { p: 'AWF222iqqLA' }, { p: 'YjtqOSdSFG0' } ] },
   { id: 'news', title: 'Konbini News', years: '2021 — 2025', role: 'Chargé de production éditoriale',
     text: 'Reportages et tournages en France et à l’étranger, formats longs, présidentielle 2022.',
-    items: [ { p: 'bwWgcEKt4E4' }, { g: 'Présidentielle 2022', photos: ['news-05'] },
-             { p: 'a-vN-7s14Kg' }, { g: 'Sur le terrain', photos: ['news-09', 'news-14'] },
-             { v: 'news-06' }, { p: 'WzbVKaBdHJI' }, { p: 'qkyXoi0LyFw' },
-             { g: 'La rédac', photos: ['news-13', 'news-01', 'news-02'] },
-             { p: 'LNldcBoiNbk' }, { p: '8dPnqTP9ZMQ' }, { v: 'news-07' }, { p: 'xOWNDgb_kDo' } ] },
+    items: [ { p: 'bwWgcEKt4E4' }, { g: 'Présidentielle 2022', photos: ['news-05'] }, { p: 'Y6xmVImERoY' },
+             { p: 'WzbVKaBdHJI' }, { p: 'a-vN-7s14Kg' }, { g: 'Sur le terrain', photos: ['news-09', 'news-14'] }, { p: 'iw39FyYioUc' },
+             { v: 'news-06' }, { p: 'qkyXoi0LyFw' }, { p: '8dPnqTP9ZMQ' }, { p: 'iUCg5P910BI' },
+             { g: 'La rédac', photos: ['news-13', 'news-01', 'news-02'] }, { p: '6hVDoIzw_54' }, { p: 'rXt_DtUoa3c' },
+             { p: '7i5tEs8q1yc' }, { p: 'PDy3RpQTktw' }, { v: 'news-07' }, { p: 'IkO56jyz2-c' }, { p: 'LNldcBoiNbk' }, { p: 'xOWNDgb_kDo' } ] },
   { id: 'direction', title: 'Direction de la production éditoriale', years: '2025 — 2026', role: 'Directeur de production éditoriale',
     text: 'Budget, outils et process de production, équipes image et montage.',
     items: [ { p: 'GVqOtVfTAd4' }, { g: 'Konbini Café', photos: ['direction-10', 'direction-02', 'direction-12', 'direction-03'] },
-             { p: 'iurBzLRrQRQ' }, { p: 'PxbymaIm_0k' }, { g: 'Studios', photos: ['direction-13', 'direction-05', 'direction-01'] },
-             { p: 'oQNhcCQ11QU' }, { p: 'i5x2hm7Epdc' }, { p: 'A-tHMViRwKM' },
-             { g: 'Coulisses', photos: ['direction-06', 'direction-07'] }, { p: '9X2Wn5pQ9kw' } ] },
+             { p: 'sGHH-UzRhxY' }, { p: 'UfmRgJmdplo' }, { g: 'Studios', photos: ['direction-13', 'direction-05', 'direction-01'] },
+             { p: 'PxbymaIm_0k' }, { p: 'oQNhcCQ11QU' }, { p: 'A-tHMViRwKM' },
+             { g: 'Coulisses', photos: ['direction-06', 'direction-07'] }, { p: '9X2Wn5pQ9kw' }, { p: 'VxhJTdN2q6k' } ] },
   { id: 'head', title: 'Head of Production', years: '2026 — aujourd’hui', role: 'Konbini',
     text: 'Co-direction du département Production, éditorial et brand content.',
-    items: [ { p: 'UfmRgJmdplo' } ] },
+    items: [] },
   { id: 'bureau', title: 'Bureau en bordel', years: '', role: 'Exposition',
     text: 'Huit bureaux, aucun rangement.',
     items: ['bureau-01', 'bureau-02', 'bureau-03', 'bureau-04', 'bureau-05', 'bureau-06', 'bureau-07', 'bureau-08'].map(ph => ({ ph })) },
@@ -206,8 +220,8 @@ const darkMQ = matchMedia('(prefers-color-scheme: dark)');
 const THEMES = {
   day:   { bg: 0xffffff, line: [.12, .33, .94], frame: 0x1f54f0, empty: 0xe9eefc, ghost: 0xf4f6fe, badge: '#1f54f0',
            panel: { bg: '#ffffff', border: '#1f54f0', dim: '#6b7391', text: '#0f1a3d', role: '#1f54f0' } },
-  night: { bg: 0x07090f, line: [.37, .78, 1], frame: 0x5fb4ff, empty: 0x151a2a, ghost: 0x1a2033, badge: '#2a6cff',
-           panel: { bg: '#0b0f1c', border: '#5fb4ff', dim: '#8a93b5', text: '#e8ecff', role: '#5fb4ff' } },
+  night: { bg: 0x0b0806, line: [1, .6, .26], frame: 0xffa24a, empty: 0x1e1611, ghost: 0x241a13, badge: '#d9712a',
+           panel: { bg: '#120d09', border: '#ffa24a', dim: '#a8988a', text: '#f6ece2', role: '#ffa24a' } },
 };
 let TH = darkMQ.matches ? THEMES.night : THEMES.day;
 scene.background = new THREE.Color(TH.bg);
@@ -428,8 +442,7 @@ function open(a) {
     cardTitle.textContent = a.info.title; cardText.textContent = a.info.text;
     row('Format', a.info.format); row('Année', a.info.year); row('Chaîne', 'Konbini');
     cardLink.href = `https://youtu.be/${a.yt}`; cardLink.hidden = false;
-  } else if (a.kind === 'group') { cardTitle.textContent = a.title; cardText.textContent = a.text; row('Photos', String(a.photos.length));
-    if (a.photos.length > 1) cardHint.textContent = 'Clic sur une photo pour l’agrandir'; }
+  } else if (a.kind === 'group') { cardTitle.textContent = a.title; cardText.textContent = a.text; row('Photos', String(a.photos.length));}
   else if (a.kind === 'video') { cardTitle.textContent = 'Showreel Konbini News'; cardText.textContent = ''; cardHint.textContent = 'Son activé · toucher pour fermer'; }
   else { cardTitle.textContent = ''; cardText.textContent = ''; }
   if (a.video) { a.video.muted = false; a.video.currentTime = 0; a.video.play().catch(() => {}); }
@@ -449,7 +462,7 @@ function syncPlayer() {
   Object.assign(player.style, { left: x + 'px', top: y + 'px', width: W_ + 'px', height: H_ + 'px' });
   if (playerFor !== a) {
     playerFor = a; player.classList.add('on');
-    player.innerHTML = `<iframe src="https://www.youtube-nocookie.com/embed/${a.yt}?autoplay=1&rel=0&playsinline=1" title="${a.info.title.replace(/"/g, '&quot;')}" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowfullscreen></iframe>`;
+    player.innerHTML = `<iframe src="https://www.youtube-nocookie.com/embed/${a.yt}?rel=0&playsinline=1" title="${a.info.title.replace(/"/g, '&quot;')}" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowfullscreen></iframe>`;
   }
 }
 
@@ -471,12 +484,6 @@ addEventListener('pointerdown', e => ndc.set(e.clientX / innerWidth * 2 - 1, -(e
 renderer.domElement.addEventListener('click', () => {
   if (dragged) return;
   if (selected) {
-    if (selected.extra.length && selected.t > .9) { // clic sur une photo du groupe ouvert → l'agrandir (re-clic : retour à la grille)
-      ray.setFromCamera(ndc, camera);
-      const list = [selected.mesh, ...selected.extra.map(m => m.mesh)];
-      const h = ray.intersectObjects(list, false)[0];
-      if (h) { const k = list.indexOf(h.object); selected.focus = selected.focus === k ? null : k; place(selected, false); return; }
-    }
     return close();
   }
   const a = pick(); if (a) open(a);
