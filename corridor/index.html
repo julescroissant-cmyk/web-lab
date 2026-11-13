@@ -35,6 +35,9 @@
   .card p { color:var(--dim); }
   .card dl { display:grid; grid-template-columns:auto 1fr; gap:4px 14px; margin-top:14px; text-transform:uppercase; }
   .card dt { color:var(--dim); }
+  .card .watch { display:inline-block; margin-top:16px; color:var(--fg); text-transform:uppercase; text-decoration:none;
+    border-bottom:1px solid var(--fg); pointer-events:auto; }
+  .card .watch:hover { color:#1f54f0; border-color:#1f54f0; }
   @media (pointer:coarse) { .keys { display:none; } }
   @media (max-width:700px) {
     .hud { padding:16px; }
@@ -47,13 +50,13 @@
 <body>
 <div class="hud">
   <header>
-    <div class="brand">Corridor<br><i>studio</i></div>
-    <div class="meta">Galerie numérique<br>Œuvres 2019 — 2026</div>
+    <div class="brand">Jules<br><i>Croissant</i></div>
+    <div class="meta">Production vidéo<br>Greatest hits</div>
   </header>
   <div></div>
   <footer>
     <div>
-      <div class="idx" id="idx">01 / 16</div>
+      <div class="idx" id="idx"></div>
       <div class="title" id="title"></div>
       <div class="progress"><span id="bar"></span></div>
     </div>
@@ -69,7 +72,8 @@
   <div class="idx" id="cardIdx"></div>
   <h2 id="cardTitle"></h2>
   <p id="cardText"></p>
-  <dl><dt>Année</dt><dd id="cardYear"></dd><dt>Médium</dt><dd id="cardMedium"></dd></dl>
+  <dl id="cardMeta"></dl>
+  <a class="watch" id="cardLink" target="_blank" rel="noopener">Regarder sur YouTube ↗</a>
 </aside>
 
 <script type="importmap">{ "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js" } }</script>
@@ -77,7 +81,17 @@
 import * as THREE from 'three';
 
 // ---------- Corridor geometry: a bending path, s = distance along it ----------
-const W = 6, H = 4, COUNT = 16, SPACING = 7, START = 6;
+// ---------- Contenu : une entrée par vidéo (yt = identifiant YouTube, la partie après youtu.be/) ----------
+const WORKS = [
+  { yt: 'YjtqOSdSFG0', title: 'Booba x Julien Beats', format: 'Interview', text: 'La rencontre surprise du Duc avec le nouveau sniper.' },
+  { yt: 'iurBzLRrQRQ', title: 'Brad Pitt', format: 'Vidéo Club', text: 'La légende Brad Pitt est dans le Vidéo Club.' },
+  { yt: 'GVqOtVfTAd4', title: 'Adèle Exarchopoulos', format: 'Small Talk', text: 'Small Talk S05E03 : son date a fini à l’hôpital.' },
+  { yt: 'qkyXoi0LyFw', title: 'La Chesnaie', format: 'Reportage', text: 'Immersion dans La Chesnaie, la clinique psychiatrique alternative.' },
+  { yt: 'En11SquByQc', title: 'Les Incels', format: 'Reportage', text: 'Ces hommes qui veulent détruire les femmes. Un reportage Konbini News.' },
+];
+
+const W = 6, H = 4, COUNT = WORKS.length, SPACING = 7, START = 6;
+const PW = 2.4, PH = 1.35, FW = PW + .12, FH = PH + .12; // 16:9 screen and its frame
 const S_MIN = -16, S_END = START + SPACING * (COUNT - 1) + 24;
 const S_MAX_CAM = START + SPACING * (COUNT - 1) - 3;
 const UP = new THREE.Vector3(0, 1, 0);
@@ -144,40 +158,31 @@ const gridMat = new THREE.ShaderMaterial({
 });
 scene.add(new THREE.LineSegments(gridGeo, gridMat));
 
-// ---------- Placeholder artworks ----------
-const NAMES = ['Halo','Sédiment','Nocturne','Faille','Prisme','Marée','Spectre','Strate','Lueur','Orbite','Fréquence','Vestige','Éclipse','Dérive','Pulsation','Silence'];
-const MEDIA = ['Shader temps réel','Impression pigmentaire','Installation lumineuse','Vidéo générative','Sculpture numérique'];
+// ---------- Artworks: YouTube thumbnails (served with CORS, so usable as textures) ----------
 await document.fonts.ready;
 
-function artTexture(i, hue) {
-  const c = document.createElement('canvas'); c.width = 512; c.height = 640;
+function placeholder(i) {
+  const c = document.createElement('canvas'); c.width = 640; c.height = 360;
   const g = c.getContext('2d');
-  let seed = i * 7919 + 13;
-  const rnd = () => (seed = (seed * 9301 + 49297) % 233280) / 233280;
-  g.fillStyle = `hsl(${hue},20%,7%)`; g.fillRect(0, 0, 512, 640);
-  const gr = g.createRadialGradient(256 + (rnd() - .5) * 220, 300 + (rnd() - .5) * 260, 8, 256, 320, 440);
-  gr.addColorStop(0, `hsla(${hue},95%,62%,.95)`);
-  gr.addColorStop(.45, `hsla(${(hue + 40) % 360},70%,32%,.55)`);
-  gr.addColorStop(1, 'transparent');
-  g.fillStyle = gr; g.fillRect(0, 0, 512, 640);
-  g.globalCompositeOperation = 'screen';
-  for (let k = 0; k < 7; k++) {
-    g.strokeStyle = `hsla(${(hue + k * 22) % 360},90%,72%,.45)`; g.lineWidth = 1 + rnd() * 3; g.beginPath();
-    if (rnd() < .5) g.arc(rnd() * 512, rnd() * 640, 30 + rnd() * 190, 0, Math.PI * 2);
-    else g.rect(rnd() * 400, rnd() * 500, 40 + rnd() * 220, 40 + rnd() * 220);
-    g.stroke();
-  }
-  g.globalCompositeOperation = 'source-over';
-  g.fillStyle = 'rgba(255,255,255,.85)';
-  g.font = '500 16px "JetBrains Mono", monospace';
-  g.fillText(`${String(i + 1).padStart(2, '0')} — ${NAMES[i].toUpperCase()}`, 28, 612);
-  const t = new THREE.CanvasTexture(c);
-  t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = renderer.capabilities.getMaxAnisotropy();
-  return t;
+  g.fillStyle = '#0f1a3d'; g.fillRect(0, 0, 640, 360);
+  g.fillStyle = 'rgba(255,255,255,.85)'; g.font = '500 22px "JetBrains Mono", monospace';
+  g.fillText(`${String(i + 1).padStart(2, '0')} — ${WORKS[i].title.toUpperCase()}`, 32, 324);
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t;
+}
+const loader = new THREE.TextureLoader().setCrossOrigin('anonymous');
+function thumbInto(mat, id) {
+  const done = (t, crop) => {
+    t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = renderer.capabilities.getMaxAnisotropy();
+    if (crop) { t.repeat.set(1, .75); t.offset.set(0, .125); } // hqdefault is 4:3 with black bars: keep the 16:9 middle
+    mat.map.dispose(); mat.map = t; mat.needsUpdate = true;
+  };
+  // maxresdefault does not exist for every video: YouTube then answers 404 *with* a 120×90 grey image → fall back to hqdefault
+  const fallback = () => loader.load(`https://i.ytimg.com/vi/${id}/hqdefault.jpg`, t => done(t, true));
+  loader.load(`https://i.ytimg.com/vi/${id}/maxresdefault.jpg`, t => t.image.width > 200 ? done(t, false) : (t.dispose(), fallback()), undefined, fallback);
 }
 
-const planeGeo = new THREE.PlaneGeometry(1.6, 2);
-const edgeGeo = new THREE.EdgesGeometry(new THREE.PlaneGeometry(1.72, 2.12));
+const planeGeo = new THREE.PlaneGeometry(PW, PH);
+const edgeGeo = new THREE.EdgesGeometry(new THREE.PlaneGeometry(FW, FH));
 const arts = [];
 for (let i = 0; i < COUNT; i++) {
   const s = START + i * SPACING, side = i % 2 ? 1 : -1, hue = (i * 47 + 190) % 360;
@@ -187,7 +192,9 @@ for (let i = 0; i < COUNT; i++) {
   const wallPos = f.c.clone().addScaledVector(f.R, side * (W / 2 - .04)).addScaledVector(f.U, .15);
   const col = new THREE.Color(`hsl(${hue},85%,62%)`).convertLinearToSRGB(); // shader writes raw sRGB
 
-  const mesh = new THREE.Mesh(planeGeo, new THREE.MeshBasicMaterial({ map: artTexture(i, hue) }));
+  const mat = new THREE.MeshBasicMaterial({ map: placeholder(i) });
+  thumbInto(mat, WORKS[i].yt);
+  const mesh = new THREE.Mesh(planeGeo, mat);
   mesh.add(new THREE.LineSegments(edgeGeo, new THREE.LineBasicMaterial({ color: 0x1f54f0 })));
   mesh.position.copy(wallPos); mesh.quaternion.copy(wallQuat);
   scene.add(mesh);
@@ -195,7 +202,7 @@ for (let i = 0; i < COUNT; i++) {
   lightPos[i].copy(wallPos).addScaledVector(f.R, -side * 1.2);
   lightCol[i].set(col.r, col.g, col.b);
   arts.push({ i, s, side, mesh, wallPos, wallQuat, t: 0, hover: 0,
-    name: NAMES[i], year: 2019 + (i * 3) % 8, medium: MEDIA[i % MEDIA.length] });
+    ...WORKS[i], name: WORKS[i].title });
 }
 const meshes = arts.map(a => a.mesh);
 
@@ -212,12 +219,16 @@ const tanH = () => Math.tan(THREE.MathUtils.degToRad(camera.fov / 2));
 let view = { dist: 3, ox: 0, oy: 0 };
 function layoutView() {
   const t = tanH(), a = camera.aspect;
-  if (innerWidth > 700) { view = { dist: Math.max(2.6, 1.92 / (2 * t * a)), ox: a > 1.1 ? -.55 : 0, oy: 0 }; return; }
+  if (innerWidth > 700) { // wide screens: the card sits on the right, the screen fills ~55% of the width on the left
+    const wide = a > 1.1, fx = wide ? .55 : .85;
+    const dist = Math.max(FW / (2 * t * a * fx), FH / (2 * t * .62));
+    view = { dist, ox: wide ? -.22 * t * a * dist : 0, oy: 0 }; return;
+  }
   const top = document.querySelector('header').getBoundingClientRect().bottom + 12;
   const bottom = card.offsetTop - 12; // offsetTop ignores the slide-in transform
   const hPx = Math.max(120, bottom - top);
-  // framed plane is 1.72 × 2.12: fit its height in the gap and its width in the screen
-  const dist = Math.max(2.12 * innerHeight / (hPx * 2 * t), 1.72 * innerWidth / ((innerWidth - 32) * 2 * t * a));
+  // fit the frame's height in the gap and its width in the screen
+  const dist = Math.max(FH * innerHeight / (hPx * 2 * t), FW * innerWidth / ((innerWidth - 32) * 2 * t * a));
   const ndcY = 1 - (top + bottom) / innerHeight;
   view = { dist, ox: 0, oy: ndcY * t * dist };
 }
@@ -225,8 +236,14 @@ function layoutView() {
 function open(a) { selected = a; sT = s;
   cardIdx.textContent = `${String(a.i + 1).padStart(2, '0')} / ${COUNT}`;
   cardTitle.textContent = a.name;
-  cardText.textContent = 'Œuvre placeholder — remplace la texture et ce texte par tes propres visuels.';
-  cardYear.textContent = a.year; cardMedium.textContent = a.medium;
+  cardText.textContent = a.text;
+  cardMeta.innerHTML = '';
+  for (const [k, v] of [['Format', a.format], ['Année', a.year], ['Chaîne', 'Konbini']]) {
+    if (!v) continue; // year stays hidden until it is filled in
+    const dt = document.createElement('dt'), dd = document.createElement('dd');
+    dt.textContent = k; dd.textContent = v; cardMeta.append(dt, dd);
+  }
+  cardLink.href = `https://youtu.be/${a.yt}`;
   card.classList.add('on'); layoutView(); }
 function close() { selected = null; card.classList.remove('on'); }
 const go = dir => { const n = arts[Math.min(Math.max(nearest(sT).i + dir, 0), COUNT - 1)]; sT = clampS(n.s - 5.5); };

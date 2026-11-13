@@ -93,6 +93,11 @@
   .files { background:#fff; padding:12px; display:grid; grid-template-columns:repeat(auto-fill,minmax(104px,1fr)); gap:10px; min-height:180px; }
   .file { all:unset; display:grid; justify-items:center; gap:6px; padding:6px 4px; cursor:default; text-align:center; font:12px/1.25 var(--pix); }
   .file canvas { width:72px; height:54px; image-rendering:pixelated; box-shadow:0 0 0 1px #0003, 0 3px 6px #0002; }
+  .file img { width:96px; height:54px; object-fit:cover; box-shadow:0 0 0 1px #0003, 0 3px 6px #0002; }
+  .files { grid-template-columns:repeat(auto-fill,minmax(118px,1fr)); }
+  .player { aspect-ratio:16/9; background:#000; }
+  .player iframe { display:block; width:100%; height:100%; border:0; }
+  .win[data-id="player"] .content { padding:6px; }
   .file.sel span { background:var(--sel); color:#fff; outline:1px dotted #fff; }
   .file:focus-visible span { outline:1px dotted var(--ink); }
   .statusbar { margin-top:8px; padding:4px 8px; font:12px var(--pix); min-height:24px; }
@@ -220,6 +225,10 @@
   <div class="content"><div class="term sunken" id="term"><div id="out"></div><label class="prompt"><span id="ps1"></span><input id="cmd" autocomplete="off" autocapitalize="off" spellcheck="false" aria-label="Commande du terminal"></label></div></div>
 </section>
 
+<section class="win" data-id="player" data-title="lecteur" data-icon="monitor" data-pos=".5,.3" style="--w:720px">
+  <div class="content"><div class="player sunken" id="player"></div><div class="statusbar sunken" id="playerInfo"></div></div>
+</section>
+
 <section class="win" data-id="trash" data-title="Corbeille" data-icon="trash" data-pos=".36,.7" style="--w:380px">
   <div class="content trash">
     <ul class="sunken" id="trashList"></ul>
@@ -246,7 +255,13 @@ const C = {
   wallpaper: '', // URL d'une photo pour remplacer le fond peint (ex. 'prairie.jpg')
   links: [['LinkedIn', 'https://www.linkedin.com/in/julescroissant/']],
   // year: null quand l'année n'est pas connue
+  // yt : identifiant YouTube (la partie après youtu.be/) → miniature + lecteur intégré
   projects: [
+    { name: 'Booba x Julien Beats', ext: 'mp4', yt: 'YjtqOSdSFG0', desc: 'Interview · la rencontre surprise du Duc avec le nouveau sniper', year: null },
+    { name: 'Brad Pitt · Vidéo Club', ext: 'mp4', yt: 'iurBzLRrQRQ', desc: 'Vidéo Club · la légende Brad Pitt dans le Vidéo Club', year: null },
+    { name: 'Adèle Exarchopoulos · Small Talk', ext: 'mp4', yt: 'GVqOtVfTAd4', desc: 'Small Talk S05E03 · son date a fini à l’hôpital', year: null },
+    { name: 'La Chesnaie', ext: 'mp4', yt: 'qkyXoi0LyFw', desc: 'Reportage · immersion dans une clinique psychiatrique alternative', year: null },
+    { name: 'Les Incels', ext: 'mp4', yt: 'En11SquByQc', desc: 'Reportage Konbini News · ces hommes qui veulent détruire les femmes', year: null },
     { name: 'Premier doc 52′', ext: 'mov', desc: 'Production du premier documentaire 52 minutes de Konbini', year: null, c: '#4aa8ff' },
     { name: 'Présidentielle 2022', ext: 'mp4', desc: 'Couverture Konbini News : interviews de tous les candidats, dont le Président de la République', year: 2022, c: '#ff7eb6' },
   ],
@@ -426,10 +441,22 @@ const nFiles = `${C.projects.length} objet(s)`;
 pStatus.textContent = nFiles;
 C.projects.forEach((p, i) => {
   const b = document.createElement('button'); b.className = 'file';
-  b.append(thumb(p, i)); const s = document.createElement('span'); s.textContent = `${p.name.toLowerCase()}.${p.ext}`; b.append(s);
+  if (p.yt) { const im = new Image(); im.src = `https://i.ytimg.com/vi/${p.yt}/mqdefault.jpg`; im.alt = ''; im.loading = 'lazy'; b.append(im); }
+  else b.append(thumb(p, i));
+  const s = document.createElement('span'); s.textContent = `${p.name.toLowerCase()}.${p.ext}`; b.append(s);
   b.onclick = () => { files.querySelectorAll('.sel').forEach(e => e.classList.remove('sel')); b.classList.add('sel'); pStatus.textContent = `${p.name} — ${p.desc}${p.year ? ` · ${p.year}` : ''}`; };
+  if (p.yt) {
+    b.ondblclick = () => play(p);
+    b.addEventListener('click', e => { if (e.detail === 0 || matchMedia('(pointer: coarse)').matches) play(p); }); // keyboard and touch: one activation
+  }
   files.append(b);
 });
+function play(p) {
+  player.innerHTML = `<iframe src="https://www.youtube-nocookie.com/embed/${p.yt}?autoplay=1&rel=0" title="${esc(p.name)}" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowfullscreen></iframe>`;
+  playerInfo.innerHTML = `${esc(p.desc)} · <a href="https://youtu.be/${p.yt}" target="_blank" rel="noopener">YouTube ↗</a>`;
+  wins.player.querySelector('.title span').textContent = `${p.name.toLowerCase()}.${p.ext}`;
+  openWin('player');
+}
 files.addEventListener('click', e => { if (e.target === files) { files.querySelectorAll('.sel').forEach(x => x.classList.remove('sel')); pStatus.textContent = nFiles; } });
 const renderTrash = () => trashList.innerHTML = C.trash.length
   ? C.trash.map(t => `<li><img src="${iconURL(t.endsWith('/') ? 'folder' : 'doc')}" alt="">${esc(t)}</li>`).join('')
@@ -515,7 +542,7 @@ function openWin(id, from) {
   if (id === 'terminal' && !mobile()) cmd.focus();
   return true;
 }
-function closeWin(id) { wins[id].classList.remove('open', 'min', 'max', 'active'); if (active === id) active = null; renderTasks(); }
+function closeWin(id) { if (id === 'player') player.innerHTML = ''; wins[id].classList.remove('open', 'min', 'max', 'active'); if (active === id) active = null; renderTasks(); }
 function minimize(id) { wins[id].classList.add('min'); wins[id].classList.remove('active'); if (active === id) active = null; renderTasks(); }
 function renderTasks() {
   tasks.innerHTML = '';
