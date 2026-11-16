@@ -100,6 +100,12 @@
   .player { aspect-ratio:16/9; background:#000; }
   .player iframe { display:block; width:100%; height:100%; border:0; }
   .win[data-id="player"] .content { padding:6px; }
+  /* corridor.exe : le couloir 3D dans une fenêtre */
+  .win[data-id="corridor"] .content { padding:2px; display:flex; flex-direction:column; }
+  .corfr { display:block; width:100%; height:min(68vh, 560px); border:0; background:#fff; }
+  .win[data-id="corridor"].max .corfr { flex:1; height:auto; min-height:0; }
+  .corbar { display:flex; justify-content:space-between; align-items:center; gap:8px; padding:4px 6px 2px; font:12px var(--pix); }
+  .corbar a { color:var(--sel); }
   .file.sel span { background:var(--sel); color:#fff; outline:1px dotted #fff; }
   .file:focus-visible span { outline:1px dotted var(--ink); }
   .statusbar { margin-top:8px; padding:4px 8px; font:12px var(--pix); min-height:24px; }
@@ -263,6 +269,11 @@
   <div class="content"><div class="viewer sunken"><img id="viewImg" alt=""></div><div class="statusbar sunken" id="viewInfo"></div></div>
 </section>
 
+<section class="win" data-id="corridor" data-title="corridor.exe" data-icon="corridor" data-pos=".5,.25" style="--w:880px">
+  <div class="content"><iframe class="corfr sunken" id="corFrame" title="Corridor : le parcours en 3D" allow="fullscreen; autoplay; encrypted-media; picture-in-picture"></iframe>
+    <div class="corbar"><span>Avance avec la molette ou ↑ ↓ · clic pour ouvrir</span><a href="../corridor/" target="_blank" rel="noopener">plein écran ↗</a></div></div>
+</section>
+
 <section class="win" data-id="trash" data-title="Corbeille" data-icon="trash" data-pos=".36,.7" style="--w:380px">
   <div class="content trash">
     <ul class="sunken" id="trashList"></ul>
@@ -404,6 +415,7 @@ const DESK = [
   { id: 'terminal', label: 'terminal.exe', icon: 'monitor', pos: [.82, .7] },
   { id: 'contact', label: 'contact.eml', icon: 'mail', pos: [.86, .14] },
   { id: 'photos', label: 'photos', icon: 'folder', pos: [.84, .42] },
+  { id: 'corridor', label: 'corridor.exe', icon: 'corridor', pos: [.07, .31] },
   { id: 'trash', label: 'Corbeille', icon: 'trash', pos: [.22, .9] },
 ];
 
@@ -456,6 +468,17 @@ const W2 = 'rgba(255,255,255,', SPRITES = {
     R(3, 8, 11, 1, W2 + '.85)'); R(3, 9, 1, 8, W2 + '.6)');
     R(14, 16, 4, 6, '#d43a32'); R(13, 17, 6, 4, '#d43a32'); R(14, 21, 4, 1, '#9e221c'); R(18, 18, 1, 3, '#9e221c');
     P(14, 17, '#ff9a8a'); P(15, 17, '#ff6e60'); P(14, 18, '#ff6e60'); P(16, 19, '#a82620');
+  },
+  corridor({ R, P, V, box, line }) {
+    const ol = '#1b2a6b', bl = '#1f54f0', lb = '#9db4ff';
+    V(3, 3, 26, 26, ['#ffffff', '#f4f7ff', '#e9efff']); box(2, 2, 28, 28, ol);
+    R(3, 3, 26, 1, '#ffffff');
+    box(7, 7, 18, 18, lb); box(11, 11, 10, 10, lb); box(14, 14, 4, 4, bl);
+    line(3, 3, 14, 14, bl); line(28, 3, 17, 14, bl); line(3, 28, 14, 17, bl); line(28, 28, 17, 17, bl);
+    R(15, 15, 2, 2, '#ffffff');
+    // œuvres accrochées aux murs
+    R(5, 11, 2, 6, '#ff7a6e'); P(5, 11, '#ffb3a8'); R(25, 12, 2, 5, '#ffc53d'); P(26, 12, '#ffe29a');
+    R(9, 14, 1, 3, '#38c172'); R(22, 14, 1, 3, '#9b7bff');
   },
   trash({ R, P, box }) {
     const ol = '#2b2f36', ramp = ['#8e959f', '#c5cad2', '#eef0f3', '#d7dbe1', '#b6bcc5', '#9aa1ac', '#7c838e'];
@@ -716,6 +739,10 @@ const syncTasks = () => tasks.querySelectorAll('.task').forEach(b => b.setAttrib
 const still = matchMedia('(prefers-reduced-motion: reduce)').matches;
 function openWin(id, from) {
   const w = wins[id]; if (!w) return false;
+  if (id === 'corridor') {
+    if (mobile()) { location.href = '../corridor/'; return true; } // sur téléphone : le couloir en plein écran
+    if (!corFrame.src) corFrame.src = '../corridor/';                  // chargé seulement à l'ouverture (WebGL)
+  }
   if (!w.classList.contains('open')) {
     w.classList.add('open'); place(w);
     if (from && !still) { // item "pickup" hop, then the window zooms out of the icon
@@ -730,7 +757,7 @@ function openWin(id, from) {
   if (id === 'terminal' && !mobile()) cmd.focus();
   return true;
 }
-function closeWin(id) { if (id === 'player') player.innerHTML = ''; wins[id].classList.remove('open', 'min', 'max', 'active'); if (active === id) active = null; renderTasks(); }
+function closeWin(id) { if (id === 'player') player.innerHTML = ''; if (id === 'corridor') corFrame.removeAttribute('src'); wins[id].classList.remove('open', 'min', 'max', 'active'); if (active === id) active = null; renderTasks(); }
 function minimize(id) { wins[id].classList.add('min'); wins[id].classList.remove('active'); if (active === id) active = null; renderTasks(); }
 function renderTasks() {
   tasks.innerHTML = '';
@@ -803,17 +830,17 @@ function print(text, cls) {
   }
   term.scrollTop = term.scrollHeight;
 }
-const ALIAS = { photos: 'photos', hello: 'hello', about: 'hello', projets: 'projects', projects: 'projects', cv: 'cv', 'cv.pdf': 'cv', contact: 'contact', 'contact.eml': 'contact', corbeille: 'trash', trash: 'trash' };
+const ALIAS = { corridor: 'corridor', 'corridor.exe': 'corridor', photos: 'photos', hello: 'hello', about: 'hello', projets: 'projects', projects: 'projects', cv: 'cv', 'cv.pdf': 'cv', contact: 'contact', 'contact.eml': 'contact', corbeille: 'trash', trash: 'trash' };
 const CMDS = {
   help: () => { print('Commandes :', 'hl'); return ['  whoami      qui suis-je', '  about       présentation', '  projets     liste des projets', '  skills      compétences',
-    '  contact     me joindre', '  open <nom>  ouvre une fenêtre (hello, projets, cv, contact, corbeille)', '  ls · cat · echo · date · meteo · clear · exit'].join('\n'); },
+    '  contact     me joindre', '  open <nom>  ouvre une fenêtre (hello, projets, photos, corridor, cv, contact, corbeille)', '  ls · cat · echo · date · meteo · clear · exit'].join('\n'); },
   whoami: () => `${C.name} — ${C.role}`,
   about: () => { openWin('hello'); return C.bio; },
   projets: () => { const all = allProjects(C.projects); print(`${all.length} projets :`, 'hl'); return all.map(p => `  ${p.year || '    '}  ${p.name}\n        ${p.desc}`).join('\n') + '\n→ `open projets` pour l\'explorateur'; },
   skills: () => C.skills.map(([n, v]) => `  ${n.padEnd(11)} ${v}`).join('\n') + `\n  ${'Langues'.padEnd(11)} ${C.languages.join(', ')}`,
   contact: () => { openWin('contact'); return `✉  ${C.email}\n` + C.links.map(([t, h]) => `↗  ${t}  ${h}`).join('\n'); },
   open: ([n = '']) => ALIAS[n.toLowerCase()] && openWin(ALIAS[n.toLowerCase()]) ? `ouverture de ${n}…` : `open : « ${n} » introuvable`,
-  ls: () => 'projets/   photos/   cv.pdf   contact.eml   corbeille/',
+  ls: () => 'projets/   photos/   corridor.exe   cv.pdf   contact.eml   corbeille/',
   cat: ([f = '']) => f === 'cv.pdf' ? (openWin('cv'), 'binaire PDF… ouverture dans le lecteur.') : `cat : ${f || '?'} : fichier introuvable`,
   echo: a => a.join(' '),
   date: () => new Date().toLocaleString('fr-FR'),
